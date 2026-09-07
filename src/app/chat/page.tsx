@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Send, Users, Search, MoreVertical, Paperclip, Smile, LayoutDashboard, CalendarRange, MessageSquare, User } from "lucide-react";
+import { Send, Users, Search, MoreVertical, Paperclip, Smile, LayoutDashboard, CalendarRange, MessageSquare, User, LogOut } from "lucide-react";
 import { Merriweather } from "next/font/google";
+import { signOut } from "next-auth/react";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
 
@@ -114,6 +115,9 @@ export default function ChatPage() {
             <a href="/profile" className="hover:text-[#444444] transition-colors p-2" title="Profile">
               <User className="w-5 h-5" />
             </a>
+            <button onClick={() => signOut({ callbackUrl: "/login" })} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </aside>
 

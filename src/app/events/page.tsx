@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Head from "next/head";
+import { signOut } from "next-auth/react";
 import { 
   LayoutDashboard, 
   CalendarRange, 
@@ -12,7 +13,8 @@ import {
   PenTool,
   SearchX,
   MapPin,
-  Clock
+  Clock,
+  LogOut
 } from "lucide-react";
 
 export default function ActivitiesEventsPage() {
@@ -147,6 +149,9 @@ export default function ActivitiesEventsPage() {
             <a href="/profile" className="hover:text-[#444444] transition-colors p-2" title="Profile">
               <User className="w-5 h-5" />
             </a>
+            <button onClick={() => signOut({ callbackUrl: "/login" })} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </nav>

@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                        String   @id @default(uuid())
+  studentEmail              String   @unique
+  passwordHash              String
+  displayName               String?
+  isVerified                Boolean  @default(false)
+  age                       Int?
+  university                String?
+  yearOfStudy               Int?
+  isFirstTimeUni            Boolean?
+  isFirstLogin              Boolean  @default(true)
+  bio                       String?
+  introvertExtrovertScore   Int?
+  socialEnergyLevel         String?
+  
+  // PostgreSQL supports native arrays
+  interests                 String[] 
+  languages                 String[] 
+  lookingForTags            String[]
+  extractedAiTags           String[]
+  
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  lastVerifiedAt            DateTime?
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

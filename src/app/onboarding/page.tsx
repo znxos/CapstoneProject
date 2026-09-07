@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/navigation";
 import { Search, X, Check, GraduationCap, Zap, Headphones, Coffee, PartyPopper, Target, PenTool, Sparkles } from "lucide-react";
+import { completeUserOnboarding } from "../actions/user";
 
 const AVAILABLE_LANGUAGES = [
   "English", "Afrikaans", "isiZulu", "isiXhosa", "Sepedi", 
@@ -29,6 +30,8 @@ export default function OnboardingPage() {
   
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [bio, setBio] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Custom Language State
   const [showOtherLangInput, setShowOtherLangInput] = useState(false);
@@ -86,9 +89,42 @@ export default function OnboardingPage() {
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
-  const completeOnboarding = () => {
-    // In a real app, this would POST the data to the API
-    router.push("/events");
+  const completeOnboarding = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Simulate the AI extraction logic we use in the UI
+      const simulatedTags = [];
+      const lowerBio = bio.toLowerCase();
+      if (lowerBio.includes("game") || lowerBio.includes("gaming")) simulatedTags.push("GAMING");
+      if (lowerBio.includes("code")) simulatedTags.push("CODING");
+      if (lowerBio.includes("cafe")) simulatedTags.push("CAFE HOPPING");
+      if (lowerBio.includes("music")) simulatedTags.push("MUSIC");
+
+      const result = await completeUserOnboarding({
+        displayName,
+        age: parseInt(age),
+        university,
+        yearOfStudy: parseInt(yearOfStudy),
+        languages,
+        introvertExtrovertScore: introvertScore,
+        socialEnergyLevel,
+        lookingForTags: selectedTags,
+        bio,
+        extractedAiTags: simulatedTags,
+      });
+
+      if (result.error) {
+        setError(result.error);
+        setIsSubmitting(false);
+      } else {
+        window.location.href = "/events";
+      }
+    } catch (err) {
+      setError("An unexpected error occurred.");
+      setIsSubmitting(false);
+    }
   };
 
   const isStep1Valid = displayName.trim() !== "" && age !== "" && university !== "" && yearOfStudy !== "" && languages.length > 0;
@@ -113,6 +149,12 @@ export default function OnboardingPage() {
               style={{ width: `${(step / totalSteps) * 100}%` }}
             ></div>
           </div>
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center">
+              <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Wizard Content Body */}
@@ -449,15 +491,24 @@ export default function OnboardingPage() {
           ) : (
             <button 
               onClick={completeOnboarding}
-              disabled={bio.length < 10}
-              className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center ${
-                bio.length < 10 
+              disabled={bio.length < 10 || isSubmitting}
+              className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center justify-center ${
+                bio.length < 10 || isSubmitting
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                 : "text-white bg-green-600 hover:bg-green-700"
               }`}
             >
-              Complete Profile
-              <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+              {isSubmitting ? (
+                <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <>
+                  Complete Profile
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                </>
+              )}
             </button>
           )}
         </div>

@@ -1,13 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Head from "next/head";
 import { Merriweather } from "next/font/google";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isVerified = searchParams?.get("verified") === "true";
+  
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(isVerified ? "Account successfully verified! Please log in." : null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (res?.error) {
+        if (res.error === "unverified" || res.error === "expired_verification") {
+          router.push(`/confirmation?email=${encodeURIComponent(email)}`);
+        } else {
+          setError("Invalid email or password");
+          setIsLoading(false);
+        }
+      } else {
+        router.push("/events");
+        router.refresh();
+      }
+    } catch (err) {
+      setError("An unexpected error occurred.");
+      setIsLoading(false);
+    }
+  };
 
   return (
     <>
@@ -31,7 +72,21 @@ export default function LoginPage() {
               </p>
             </header>
 
-            <form action="#" className="space-y-4" data-purpose="login-form" method="POST" onSubmit={(e) => e.preventDefault()}>
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 text-[14px] rounded-lg border border-red-100 flex items-center">
+                <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 p-3 bg-green-50 text-green-700 text-[14px] rounded-lg border border-green-200 flex items-center">
+                <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {success}
+              </div>
+            )}
+
+            <form action="#" className="space-y-4" data-purpose="login-form" onSubmit={handleSubmit}>
               {/* Email Input Group */}
               <div className="space-y-1.5" data-purpose="input-group-email">
                 <label className="block text-[14px] text-subtext font-normal" htmlFor="email">
@@ -48,6 +103,8 @@ export default function LoginPage() {
                     className="w-full pl-11 pr-4 py-2.5 rounded-lg border border-[#c4c7cc] text-gray-800 placeholder-[#757575] focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal text-[15px]"
                     id="email"
                     name="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="email@address.com"
                     type="email"
                     required
@@ -71,6 +128,8 @@ export default function LoginPage() {
                     className="w-full pl-11 pr-11 py-2.5 rounded-lg border border-[#c4c7cc] text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal text-[15px] tracking-widest"
                     id="password"
                     name="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
                     type={passwordVisible ? "text" : "password"}
                     required
@@ -106,10 +165,20 @@ export default function LoginPage() {
               {/* Submit Button */}
               <div>
                 <button
-                  className="w-full bg-[#444444] hover:bg-[#333333] text-white font-semibold py-3 px-4 rounded-lg text-[16px] transition duration-150 ease-in-out shadow-sm"
+                  className={`w-full text-white font-semibold py-3 px-4 rounded-lg text-[16px] transition duration-150 ease-in-out shadow-sm flex items-center justify-center ${
+                    isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-[#444444] hover:bg-[#333333]"
+                  }`}
                   type="submit"
+                  disabled={isLoading}
                 >
-                  Log in
+                  {isLoading ? (
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    "Log in"
+                  )}
                 </button>
               </div>
 

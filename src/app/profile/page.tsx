@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Head from "next/head";
+import { signOut } from "next-auth/react";
 import { Merriweather } from "next/font/google";
 import { 
   LayoutDashboard, 
@@ -16,7 +17,8 @@ import {
   Check,
   X,
   PartyPopper,
-  Headphones
+  Headphones,
+  LogOut
 } from "lucide-react";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
@@ -143,6 +145,9 @@ export default function ProfilePage() {
             <a href="/profile" className="text-[#444444] border-b-2 border-[#444444] pb-1 px-2 pt-2" title="Profile">
               <User className="w-5 h-5" />
             </a>
+            <button onClick={() => signOut({ callbackUrl: "/login" })} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </nav>
