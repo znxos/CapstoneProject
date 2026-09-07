@@ -153,6 +153,10 @@ export async function resetPassword(token: string, newPassword: string) {
     return { error: "Missing token or password" };
   }
 
+  if (newPassword.length < 8) {
+    return { error: "Password must be at least 8 characters long" };
+  }
+
   try {
     // Find the token
     const resetRecord = await prisma.passwordResetToken.findUnique({
@@ -165,6 +169,21 @@ export async function resetPassword(token: string, newPassword: string) {
 
     if (new Date() > resetRecord.expiresAt) {
       return { error: "This password reset link has expired" };
+    }
+
+    // Get the user to check their current password
+    const user = await prisma.user.findUnique({
+      where: { studentEmail: resetRecord.email }
+    });
+
+    if (!user) {
+      return { error: "User not found" };
+    }
+
+    // Check if new password is same as old password
+    const isSamePassword = await bcrypt.compare(newPassword, user.passwordHash);
+    if (isSamePassword) {
+      return { error: "Your new password must be different from previously used one." };
     }
 
     // Hash the new password
