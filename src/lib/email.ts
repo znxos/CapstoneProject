@@ -34,6 +34,38 @@ export async function sendVerificationEmail(email: string, token: string) {
     return { success: true, data };
   } catch (error) {
     console.error("Error sending verification email:", error);
-    return { success: false, error };
+    throw new Error("Failed to send verification email");
+  }
+}
+
+export async function sendPasswordResetEmail(email: string, token: string) {
+  const resetLink = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
+
+  // For local development when Resend is sandboxed, log the link to the terminal!
+  console.log("=========================================");
+  console.log("PASSWORD RESET EMAIL INTERCEPTED");
+  console.log(`Click this link to reset password: ${resetLink}`);
+  console.log("=========================================");
+
+  try {
+    const data = await resend.emails.send({
+      from: "Capestone Project <onboarding@invertaxis.com>",
+      to: [email],
+      subject: "Reset your password",
+      html: `
+        <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto;">
+          <h2>Password Reset Request</h2>
+          <p>We received a request to reset your password. Click the link below to choose a new one. This link will expire in 24 hours.</p>
+          <a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #444444; color: white; text-decoration: none; border-radius: 6px; margin-top: 16px;">Reset Password</a>
+          <p style="margin-top: 24px; font-size: 14px; color: #666;">If you didn't request this, you can safely ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin-top: 30px;" />
+          <p style="color: #999; font-size: 12px;">Or copy and paste this link into your browser: <br/> ${resetLink}</p>
+        </div>
+      `,
+    });
+    return data;
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    throw new Error("Failed to send password reset email");
   }
 }

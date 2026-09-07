@@ -2,10 +2,38 @@
 
 import Head from "next/head";
 import { Merriweather } from "next/font/google";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { requestPasswordReset } from "../actions/auth";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700"] });
 
 export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await requestPasswordReset(email);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        router.push(`/forgot-password-confirmation?email=${encodeURIComponent(email)}`);
+      }
+    } catch (err) {
+      setError("An unexpected error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   return (
     <>
       <Head>
@@ -34,12 +62,16 @@ export default function ForgotPasswordPage() {
             
             {/* Reset Form */}
             <form
-              action="#"
               className="space-y-5"
               data-purpose="reset-request-form"
-              method="POST"
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={handleSubmit}
             >
+              {error && (
+                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center">
+                  <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  {error}
+                </div>
+              )}
               {/* Input Field Container */}
               <div className="space-y-1.5">
                 <label className="block text-[14px] font-normal text-gray-700" htmlFor="email">
@@ -60,6 +92,9 @@ export default function ForgotPasswordPage() {
                     placeholder="email@address.com"
                     required
                     type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -67,11 +102,19 @@ export default function ForgotPasswordPage() {
               {/* Submit Button */}
               <div className="pt-1">
                 <button
-                  className="w-full py-3 px-4 bg-[#444444] hover:bg-[#2e2e2e] active:bg-[#1a1a1a] text-white text-[15.5px] font-medium rounded-lg transition duration-150 ease-in-out shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-800"
+                  className={`w-full py-3 px-4 bg-[#444444] hover:bg-[#2e2e2e] active:bg-[#1a1a1a] text-white text-[15.5px] font-medium rounded-lg transition duration-150 ease-in-out shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-800 flex justify-center items-center ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                   data-purpose="submit-button"
                   type="submit"
+                  disabled={isSubmitting}
                 >
-                  Reset Password
+                  {isSubmitting ? (
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    "Reset Password"
+                  )}
                 </button>
               </div>
             </form>
