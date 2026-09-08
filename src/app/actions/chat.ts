@@ -104,33 +104,7 @@ export async function sendMessage(eventId: string, text: string) {
       return { error: "You are not a participant of this event." };
     }
 
-    // 2 & 3. Run Anti-spam and AI Safety Filter in parallel to save time
-    let isFlagged = false;
-    let antiSpamError: string | null = null;
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    // Build the AI Promise
-    let wasRateLimited = false;
-    const checkSafety = async (msgText: string) => {
-      if (apiKey && aiLimiter.canRequest()) {
-        try {
-          // Attempt moderation across up to 5 models if they hit limits/errors
-          return await executeModerationWithFallback(apiKey, msgText, 5);
-        } catch (aiError: any) {
-          if (aiError?.message?.includes("429")) {
-            console.warn("All 5 attempted models were Rate Limited. Failing open and sending to queue.");
-            wasRateLimited = true;
-          } else {
-            console.error("Gemini API safety check failed across all models:", aiError);
-          }
-        }
-      } else if (apiKey) {
-        wasRateLimited = true;
-      }
-      return false;
-    };
-
-    // Build the Spam Check Promise
+    // 2. Run Anti-spam
     const checkSpam = async (userId: string, msgText: string) => {
       const lastMessage = await prisma.message.findFirst({
         where: { eventId, senderId: userId },
@@ -144,14 +118,8 @@ export async function sendMessage(eventId: string, text: string) {
       return null;
     };
 
-    // Wait for both to finish simultaneously
-    const [flagResult, spamResult] = await Promise.all([
-      checkSafety(text), 
-      checkSpam(user.id, text)
-    ]);
-    
+    const spamResult = await checkSpam(user.id, text);
     if (spamResult) return { error: spamResult };
-    if (flagResult) return { error: "Your message was flagged by our safety system for violating community guidelines." };
 
     // 4. Persist to DB
     const message = await prisma.message.create({
@@ -176,14 +144,12 @@ export async function sendMessage(eventId: string, text: string) {
     // Don't await pusher to speed up response to the sender!
     pusherServer.trigger(eventId, 'incoming-message', payload).catch(console.error);
 
-    // 6. Post-Moderation
-    if (wasRateLimited) {
-      moderationQueue.push({
-        messageId: message.id,
-        eventId,
-        text
-      });
-    }
+    // 6. Post-Moderation (100% Asynchronous)
+    moderationQueue.push({
+      messageId: message.id,
+      eventId,
+      text
+    });
 
     return { success: true, message: payload };
   } catch (error) {

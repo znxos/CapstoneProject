@@ -31,7 +31,8 @@ export async function generateRationale(
   eventContext: string,
   apiKey: string | undefined
 ): Promise<string> {
-  if (!aiLimiter.canRequest()) return "Highly recommended based on your AI-extracted profile matches.";
+  const fallbackRationale = "Highly recommended based on your AI-extracted profile matches.";
+  if (!aiLimiter.canRequest()) return fallbackRationale;
   
   try {
     const apiKeyRaw = process.env.GEMINI_API_KEY || '';
@@ -40,8 +41,11 @@ export async function generateRationale(
     
     if (!key) return "Great match based on shared interests.";
 
+    // Swap to Gemma models as requested
     const genAI = new GoogleGenerativeAI(key);
-    const model = genAI.getGenerativeModel({ model: "models/gemma-4-26b-a4b-it" });
+    
+    // Attempt with the primary gemma 4 model
+    const model = genAI.getGenerativeModel({ model: "models/gemma-4-31b-it" });
     
     const prompt = `
 Given the following User Profile and Event Details, write a 1-sentence personalized rationale explaining why they are a good match.
@@ -51,13 +55,29 @@ Avoid markdown or extra formatting.
 User Profile: ${userContext}
 Event Details: ${eventContext}
 `;
-    const result = await model.generateContent(prompt);
-    let text = result.response.text();
-    // Clean up any potential line breaks or quotes
-    text = text.replace(/[\n\r"]/g, '').trim();
-    return text;
+    // Create a 5 second timeout promise (Gemma models take slightly longer to warm up)
+    const timeoutPromise = new Promise<string>((_, reject) => {
+      setTimeout(() => reject(new Error("AI_TIMEOUT")), 5000);
+    });
+
+    const aiPromise = model.generateContent(prompt).then(result => {
+      let text = result.response.text();
+      return text.replace(/[\n\r"]/g, '').trim();
+    }).catch(async (err) => {
+      // Fallback to the smaller Gemma 4 model if the 31b model fails/rate-limits
+      console.warn("models/gemma-4-31b-it failed, trying models/gemma-4-26b-a4b-it...", err.message);
+      const fallbackModel = genAI.getGenerativeModel({ model: "models/gemma-4-26b-a4b-it" });
+      const res = await fallbackModel.generateContent(prompt);
+      return res.response.text().replace(/[\n\r"]/g, '').trim();
+    });
+
+    // Race the AI generation against the 5 second timeout
+    return await Promise.race([aiPromise, timeoutPromise]);
+
   } catch (error: any) {
-    if (error?.message?.includes("429")) {
+    if (error?.message === "AI_TIMEOUT") {
+      console.warn("Gemini rationale generation timed out. Falling back to default.");
+    } else if (error?.message?.includes("429")) {
       console.warn("Gemini Rate Limited during recommendation rationale. Falling back to default.");
     } else {
       console.error("Failed to generate rationale:", error);

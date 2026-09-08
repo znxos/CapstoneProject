@@ -24,6 +24,7 @@ export default function ActivitiesEventsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [processingEventId, setProcessingEventId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
 
@@ -53,6 +54,15 @@ export default function ActivitiesEventsPage() {
   if (activeCategory !== "All") {
     displayEvents = displayEvents.filter(e => e.category === activeCategory);
   }
+
+  const EVENTS_PER_PAGE = 6;
+  const totalPages = Math.max(1, Math.ceil(displayEvents.length / EVENTS_PER_PAGE));
+  const paginatedEvents = displayEvents.slice((currentPage - 1) * EVENTS_PER_PAGE, currentPage * EVENTS_PER_PAGE);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, activeCategory]);
 
   const handleJoinLeave = async (id: string, isJoined: boolean) => {
     setProcessingEventId(id);
@@ -191,7 +201,7 @@ export default function ActivitiesEventsPage() {
 
         {/* Event Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayEvents.map((event) => {
+          {paginatedEvents.map((event) => {
             const isJoined = event.isJoined;
             const isFull = event.joinedCount >= event.capacity;
             const isCreatedByMe = event.isHost;
@@ -328,6 +338,29 @@ export default function ActivitiesEventsPage() {
             );
           })}
         </div>
+
+        {/* Pagination Controls */}
+        {displayEvents.length > EVENTS_PER_PAGE && (
+          <div className="flex justify-center items-center mt-12 space-x-4">
+            <button 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="w-10 h-10 rounded-full flex items-center justify-center border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-bold"
+            >
+              &lt;
+            </button>
+            <span className="text-sm font-bold text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="w-10 h-10 rounded-full flex items-center justify-center border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-bold"
+            >
+              &gt;
+            </button>
+          </div>
+        )}
 
         {/* Wow Empty State */}
         {displayEvents.length === 0 && (
