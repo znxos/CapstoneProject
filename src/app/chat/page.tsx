@@ -22,6 +22,7 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
@@ -76,10 +77,12 @@ export default function ChatPage() {
     let isMounted = true;
     
     const fetchMessages = async () => {
+      setIsMessagesLoading(true);
       const res = await getMessages(activeEvent.id);
       if (isMounted && res.messages) {
         setMessages(res.messages);
         setCurrentUserId(res.currentUserId || null);
+        setIsMessagesLoading(false);
       }
     };
 
@@ -98,9 +101,11 @@ export default function ChatPage() {
       });
     });
 
-    channel.bind("message-deleted", (data: { messageId: string }) => {
+    channel.bind("message-flagged", (data: { messageId: string, text: string }) => {
       if (!isMounted) return;
-      setMessages((prev) => prev.filter(m => m.id !== data.messageId));
+      setMessages((prev) => prev.map(m => 
+        m.id === data.messageId ? { ...m, text: data.text } : m
+      ));
     });
 
     return () => {
@@ -175,8 +180,16 @@ export default function ChatPage() {
           
           <div className="flex-1 overflow-y-auto chat-scrollbar bg-[#fafafa]">
             {isLoading ? (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                <Loader2 className="w-6 h-6 animate-spin" />
+              <div className="flex flex-col">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 p-5 border-b border-[#e5e7eb] animate-pulse">
+                    <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0"></div>
+                    <div className="flex-1 min-w-0 space-y-2.5">
+                      <div className="h-3.5 bg-gray-200 rounded-md w-3/4"></div>
+                      <div className="h-3 bg-gray-100 rounded-md w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : events.length === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-400 p-8 text-center text-sm">
@@ -186,7 +199,12 @@ export default function ChatPage() {
               events.map((evt) => (
                 <div 
                   key={evt.id} 
-                  onClick={() => setActiveEvent(evt)}
+                  onClick={() => {
+                    if (activeEvent?.id !== evt.id) {
+                      setIsMessagesLoading(true);
+                      setActiveEvent(evt);
+                    }
+                  }}
                   className={`flex items-center gap-4 p-5 cursor-pointer transition-colors border-b border-[#e5e7eb] ${
                     activeEvent?.id === evt.id 
                       ? 'bg-white border-l-4 border-l-[#363636]' 
@@ -224,7 +242,45 @@ export default function ChatPage() {
         </aside>
 
         {/* Main Chat Area */}
-        {activeEvent ? (
+        {isLoading ? (
+          <main className="flex-1 flex flex-col bg-white relative h-full animate-pulse">
+            <header className="h-[88px] border-b border-[#e5e7eb] bg-white z-10 flex items-center justify-between px-6 shrink-0 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-full bg-gray-200"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  <div className="h-3 bg-gray-100 rounded w-16"></div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gray-100"></div>
+                <div className="w-8 h-8 rounded-full bg-gray-100"></div>
+                <div className="w-8 h-8 rounded-full bg-gray-100"></div>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-6 chat-scrollbar space-y-6 bg-white">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className={`flex flex-col ${i % 2 === 0 ? 'items-start' : 'items-end'}`}>
+                  {i % 2 === 0 && <div className="h-2.5 bg-gray-100 rounded w-16 mb-2 ml-1"></div>}
+                  <div className={`px-5 py-3 rounded-[20px] ${i % 2 === 0 ? 'bg-gray-100 rounded-bl-sm' : 'bg-gray-200 rounded-br-sm'} w-[60%] md:w-[45%] h-16`}></div>
+                  <div className={`h-2 bg-gray-100 rounded w-10 mt-2 ${i % 2 === 0 ? 'mx-1' : 'mx-1'}`}></div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 md:p-6 bg-white border-t border-[#e5e7eb] shrink-0">
+              <div className="flex items-end gap-3 max-w-5xl mx-auto">
+                <div className="flex items-center gap-1 pb-2">
+                  <div className="w-9 h-9 rounded-full bg-gray-100"></div>
+                  <div className="w-9 h-9 rounded-full bg-gray-100"></div>
+                </div>
+                <div className="flex-1 h-[52px] bg-gray-50 border border-gray-100 rounded-[20px]"></div>
+                <div className="w-[52px] h-[52px] rounded-full bg-gray-200 shrink-0"></div>
+              </div>
+            </div>
+          </main>
+        ) : activeEvent ? (
           <main className="flex-1 flex flex-col bg-white relative h-full">
             <header className="h-[88px] border-b border-[#e5e7eb] bg-white z-10 flex items-center justify-between px-6 shrink-0 shadow-sm">
               <div className="flex items-center gap-4">
@@ -247,7 +303,17 @@ export default function ChatPage() {
             </header>
 
             <div className="flex-1 overflow-y-auto p-6 chat-scrollbar space-y-6 bg-white">
-              {messages.length === 0 ? (
+              {isMessagesLoading ? (
+                <div className="animate-pulse space-y-6">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className={`flex flex-col ${i % 2 === 0 ? 'items-start' : 'items-end'}`}>
+                      {i % 2 === 0 && <div className="h-2.5 bg-gray-100 rounded w-16 mb-2 ml-1"></div>}
+                      <div className={`px-5 py-3 rounded-[20px] ${i % 2 === 0 ? 'bg-gray-100 rounded-bl-sm' : 'bg-gray-200 rounded-br-sm'} w-[60%] md:w-[45%] h-16`}></div>
+                      <div className={`h-2 bg-gray-100 rounded w-10 mt-2 ${i % 2 === 0 ? 'mx-1' : 'mx-1'}`}></div>
+                    </div>
+                  ))}
+                </div>
+              ) : messages.length === 0 ? (
                 <div className="flex justify-center mt-10 text-gray-400 text-sm font-medium">
                   Be the first to send a message!
                 </div>

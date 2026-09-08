@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
 import Head from "next/head";
 import { Merriweather } from "next/font/google";
 import { signIn } from "next-auth/react";
@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isVerified = searchParams?.get("verified") === "true";
@@ -51,12 +51,6 @@ export default function LoginPage() {
   };
 
   return (
-    <>
-      <Head>
-        <title>Sign in</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      </Head>
-      
       <div className="bg-gray-100 min-h-screen flex items-center justify-center p-4 font-sans antialiased text-gray-800">
         <main
           className="w-full max-w-[440px] bg-white rounded-[32px] border border-[#e5e7eb] shadow-sm px-10 py-12 flex flex-col justify-between min-h-[660px]"
@@ -210,6 +204,19 @@ export default function LoginPage() {
           </footer>
         </main>
       </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <>
+      <Head>
+        <title>Sign in</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      </Head>
+      <Suspense fallback={<div className="bg-gray-100 min-h-screen flex items-center justify-center p-4">Loading...</div>}>
+        <LoginContent />
+      </Suspense>
     </>
   );
 }

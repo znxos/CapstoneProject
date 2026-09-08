@@ -55,15 +55,20 @@ Avoid markdown or extra formatting.
 User Profile: ${userContext}
 Event Details: ${eventContext}
 `;
-    // Create a 5 second timeout promise (Gemma models take slightly longer to warm up)
+    let isTimedOut = false;
     const timeoutPromise = new Promise<string>((_, reject) => {
-      setTimeout(() => reject(new Error("AI_TIMEOUT")), 5000);
+      setTimeout(() => {
+        isTimedOut = true;
+        reject(new Error("AI_TIMEOUT"));
+      }, 1500);
     });
 
     const aiPromise = model.generateContent(prompt).then(result => {
       let text = result.response.text();
       return text.replace(/[\n\r"]/g, '').trim();
     }).catch(async (err) => {
+      if (isTimedOut) return ""; // Do not attempt fallback if already timed out, saves background time
+      
       // Fallback to the smaller Gemma 4 model if the 31b model fails/rate-limits
       console.warn("models/gemma-4-31b-it failed, trying models/gemma-4-26b-a4b-it...", err.message);
       const fallbackModel = genAI.getGenerativeModel({ model: "models/gemma-4-26b-a4b-it" });
@@ -71,7 +76,7 @@ Event Details: ${eventContext}
       return res.response.text().replace(/[\n\r"]/g, '').trim();
     });
 
-    // Race the AI generation against the 5 second timeout
+    // Race the AI generation against the 1.5 second timeout
     return await Promise.race([aiPromise, timeoutPromise]);
 
   } catch (error: any) {

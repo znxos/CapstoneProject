@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { pusherServer } from "./pusher";
 import { aiLimiter } from "./aiLimiter";
-import { executeModerationWithFallback } from "./modelRotator";
+import { executeBatchModerationWithFallback } from "./modelRotator";
 
 const prisma = new PrismaClient();
 
@@ -38,29 +38,37 @@ class ModerationQueue {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return;
 
-    const item = this.queue.shift(); // Remove the oldest message
-    if (!item) return;
+    const batchSize = 20;
+    const batch = this.queue.splice(0, batchSize);
+    if (batch.length === 0) return;
 
     try {
-      const isFlagged = await executeModerationWithFallback(apiKey, item.text, 5);
+      const flaggedIds = await executeBatchModerationWithFallback(apiKey, batch, 5);
       
-      if (isFlagged) {
-        console.warn(`Post-Moderation: Message ${item.messageId} was FLAGGED. Retroactively deleting.`);
-        // Update DB
-        await prisma.message.update({
-          where: { id: item.messageId },
-          data: { isFlagged: true }
-        });
+      for (const flaggedId of flaggedIds) {
+        const item = batch.find(m => m.messageId === flaggedId);
+        if (item) {
+          console.warn(`Post-Moderation: Message ${item.messageId} was FLAGGED. Masking.`);
+          
+          // Update DB
+          await prisma.message.update({
+            where: { id: item.messageId },
+            data: { isFlagged: true }
+          });
 
-        // Broadcast to clients to remove it
-        await pusherServer.trigger(item.eventId, 'message-deleted', { messageId: item.messageId });
+          // Broadcast to clients to update text
+          await pusherServer.trigger(item.eventId, 'message-flagged', { 
+            messageId: item.messageId,
+            text: "This message has been removed for violating our community guidelines"
+          });
+        }
       }
     } catch (error: any) {
       if (error?.message?.includes("429")) {
-        console.warn("Background Moderation hit 429. Re-queueing message.");
-        this.queue.unshift(item); // Put it back at the front
+        console.warn("Background Moderation hit 429. Re-queueing batch.");
+        this.queue.unshift(...batch); // Put it back at the front
       } else {
-        console.error("Background Moderation failed for msg", item.messageId, error);
+        console.error("Background Moderation batch failed", error);
       }
     }
   }

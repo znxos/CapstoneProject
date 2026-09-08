@@ -2,7 +2,7 @@
 
 import { getServerSession } from "next-auth/next";
 import { PrismaClient } from "@prisma/client";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { aiLimiter } from "@/lib/aiLimiter";
@@ -51,10 +51,9 @@ export async function getMessages(eventId: string) {
   if (!session || !session.user?.email) return { error: "Not authenticated" };
 
   try {
-    // Only return non-flagged messages, or include flagged with a marker?
-    // Let's only return non-flagged for safety
+    // Return all messages, but mask flagged ones
     const messages = await prisma.message.findMany({
-      where: { eventId, isFlagged: false },
+      where: { eventId },
       include: { sender: { select: { id: true, displayName: true } } },
       orderBy: { timestamp: 'asc' }
     });
@@ -65,7 +64,7 @@ export async function getMessages(eventId: string) {
       id: m.id,
       senderId: m.senderId,
       senderName: m.sender.displayName || 'Unknown',
-      text: m.text,
+      text: m.isFlagged ? "This message has been removed for violating our community guidelines" : m.text,
       time: m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: user ? m.senderId === user.id : false,
       timestamp: m.timestamp.getTime()

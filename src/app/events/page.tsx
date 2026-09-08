@@ -23,6 +23,7 @@ export default function ActivitiesEventsPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [processingEventId, setProcessingEventId] = useState<string | null>(null);
@@ -30,39 +31,34 @@ export default function ActivitiesEventsPage() {
 
   const categories = ["All", "Tech", "Study", "Outdoors", "Social", "Creative"];
 
+  const EVENTS_PER_PAGE = 6;
+  const totalPages = Math.max(1, Math.ceil(totalCount / EVENTS_PER_PAGE));
+
   const loadEvents = async () => {
     setIsLoading(true);
     const { getEvents } = await import("../actions/events");
-    const result = await getEvents();
+    const result = await getEvents({
+      page: currentPage,
+      limit: EVENTS_PER_PAGE,
+      tab: activeTab,
+      category: activeCategory
+    });
     if (result && "events" in result && result.events) {
       setEvents(result.events);
+      setTotalCount(result.totalCount || 0);
     }
     setIsLoading(false);
   };
 
-  React.useEffect(() => {
-    loadEvents();
-  }, []);
-
-  let displayEvents = events;
-  if (activeTab === "my-events") {
-    displayEvents = displayEvents.filter(e => e.isJoined);
-  } else if (activeTab === "created-events") {
-    displayEvents = displayEvents.filter(e => e.isHost);
-  }
-
-  if (activeCategory !== "All") {
-    displayEvents = displayEvents.filter(e => e.category === activeCategory);
-  }
-
-  const EVENTS_PER_PAGE = 6;
-  const totalPages = Math.max(1, Math.ceil(displayEvents.length / EVENTS_PER_PAGE));
-  const paginatedEvents = displayEvents.slice((currentPage - 1) * EVENTS_PER_PAGE, currentPage * EVENTS_PER_PAGE);
-
-  // Reset page when filters change
+  // Reset to page 1 ONLY when tab or category changes, not on mount
   React.useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, activeCategory]);
+
+  // Fetch events when page, tab, or category changes
+  React.useEffect(() => {
+    loadEvents();
+  }, [currentPage, activeTab, activeCategory]);
 
   const handleJoinLeave = async (id: string, isJoined: boolean) => {
     setProcessingEventId(id);
@@ -201,7 +197,29 @@ export default function ActivitiesEventsPage() {
 
         {/* Event Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {paginatedEvents.map((event) => {
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col animate-pulse">
+                <div className="h-28 w-full bg-gray-200/60 border-b border-gray-100 p-4"></div>
+                <div className="px-6 pt-5 pb-2 flex-grow space-y-3">
+                  <div className="h-6 bg-gray-200/60 rounded-md w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200/60 rounded-md w-full"></div>
+                  <div className="h-4 bg-gray-200/60 rounded-md w-5/6 mb-4"></div>
+                  
+                  <div className="h-4 bg-gray-200/60 rounded-md w-1/2"></div>
+                  <div className="h-4 bg-gray-200/60 rounded-md w-2/5 mb-3"></div>
+                  
+                  <div className="w-full h-20 my-4 rounded-xl bg-gray-200/60 border border-gray-100"></div>
+                  <div className="bg-gray-100/60 rounded-xl p-3 mb-2 h-16 w-full"></div>
+                </div>
+                <div className="px-6 py-5 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between mt-auto">
+                  <div className="h-4 bg-gray-200/60 rounded-md w-1/3"></div>
+                  <div className="h-9 bg-gray-200/60 rounded-xl w-20"></div>
+                </div>
+              </div>
+            ))
+          ) : (
+            events.map((event) => {
             const isJoined = event.isJoined;
             const isFull = event.joinedCount >= event.capacity;
             const isCreatedByMe = event.isHost;
@@ -336,15 +354,16 @@ export default function ActivitiesEventsPage() {
                 </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
 
         {/* Pagination Controls */}
-        {displayEvents.length > EVENTS_PER_PAGE && (
+        {totalCount > EVENTS_PER_PAGE && (
           <div className="flex justify-center items-center mt-12 space-x-4">
             <button 
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              disabled={currentPage === 1 || isLoading}
               className="w-10 h-10 rounded-full flex items-center justify-center border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-bold"
             >
               &lt;
@@ -354,7 +373,7 @@ export default function ActivitiesEventsPage() {
             </span>
             <button 
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages || isLoading}
               className="w-10 h-10 rounded-full flex items-center justify-center border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-bold"
             >
               &gt;
@@ -363,7 +382,7 @@ export default function ActivitiesEventsPage() {
         )}
 
         {/* Wow Empty State */}
-        {displayEvents.length === 0 && (
+        {!isLoading && events.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 px-4 text-center animate-in fade-in duration-500">
             <div className="bg-gray-100 w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner">
               <SearchX className="w-10 h-10 text-gray-400" />

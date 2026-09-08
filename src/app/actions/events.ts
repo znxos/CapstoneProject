@@ -3,7 +3,7 @@
 import { getServerSession } from "next-auth/next";
 import { PrismaClient } from "@prisma/client";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { computeCosineSimilarity, generateRationale } from "@/lib/recommendations";
 
 const prisma = new PrismaClient();
@@ -149,7 +149,14 @@ export async function leaveEvent(eventId: string) {
   }
 }
 
-export async function getEvents() {
+export async function getEvents(params?: {
+  page?: number;
+  limit?: number;
+  tab?: "recommended" | "my-events" | "created-events";
+  category?: string;
+}) {
+  const { page = 1, limit = 6, tab = "recommended", category = "All" } = params || {};
+
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.email) {
     return { error: "Not authenticated" };
@@ -206,6 +213,11 @@ export async function getEvents() {
     const userIsFirstYear = user.age && user.age <= 19 && user.yearOfStudy === 1;
     
     const filteredEvents = events.filter(event => {
+      // Always retain events the user has already joined or created
+      if (joinedEventIds.includes(event.id) || event.hostId === user.id) {
+        return true;
+      }
+
       // 1. University Filter (if both have it defined, they must match)
       if (user.university && event.host.university && user.university !== event.host.university) {
         return false;
@@ -256,9 +268,30 @@ export async function getEvents() {
     // Sort descending by score
     scoredEvents.sort((a, b) => b.score - a.score);
 
+    // --- NEW: SERVER-SIDE TAB & CATEGORY FILTERING ---
+    let finalFilteredEvents = scoredEvents.map(se => {
+      const isJoined = joinedEventIds.includes(se.event.id);
+      const isHost = se.event.hostId === user.id;
+      return { ...se, isJoined, isHost };
+    });
+
+    if (tab === "my-events") {
+      finalFilteredEvents = finalFilteredEvents.filter(e => e.isJoined);
+    } else if (tab === "created-events") {
+      finalFilteredEvents = finalFilteredEvents.filter(e => e.isHost);
+    }
+
+    if (category !== "All") {
+      finalFilteredEvents = finalFilteredEvents.filter(e => e.event.category === category);
+    }
+
+    // --- NEW: SERVER-SIDE PAGINATION (SLICING) ---
+    const totalCount = finalFilteredEvents.length;
+    const paginatedEvents = finalFilteredEvents.slice((page - 1) * limit, page * limit);
+
     // --- RECOMMENDER SYSTEM: LAYER 3 (LLM Rationale) ---
     const apiKey = process.env.GEMINI_API_KEY;
-    const finalEvents = await Promise.all(scoredEvents.map(async ({ event, score }, index) => {
+    const finalEvents = await Promise.all(paginatedEvents.map(async ({ event, score, isJoined, isHost }, index) => {
       let rationale = `Recommended because this ${event.category} event matches your interests.`;
       
       // Only invoke LLM for top 3 to save latency/costs
@@ -306,12 +339,12 @@ export async function getEvents() {
         similarity: score,
         rationale,
         participants: dummyAvatars,
-        isJoined: joinedEventIds.includes(event.id),
-        isHost: event.hostId === user.id
+        isJoined,
+        isHost
       };
     }));
 
-    return { events: finalEvents };
+    return { events: finalEvents, totalCount };
   } catch (error) {
     console.error("Failed to get events:", error);
     return { error: "Failed to get events" };
