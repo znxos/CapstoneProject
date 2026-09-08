@@ -4,126 +4,118 @@ import React, { useState, useEffect, useRef } from "react";
 import { Send, Users, Search, MoreVertical, Paperclip, Smile, LayoutDashboard, CalendarRange, User, LogOut, Loader2, AlertCircle, MessageSquare } from "lucide-react";
 import { Merriweather } from "next/font/google";
 import { signOut } from "next-auth/react";
-import Pusher from "pusher-js";
-import { getChatEvents, getMessages, sendMessage } from "../actions/chat";
+import { getMessages, sendMessage } from "../actions/chat";
+import { useGlobalChat } from "../providers/GlobalChatProvider";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
 
-declare global {
-  interface Window {
-    pusherInstance?: Pusher;
+
+
+const bubbleColors = [
+  "bg-blue-50 border-blue-200 text-blue-900",
+  "bg-purple-50 border-purple-200 text-purple-900",
+  "bg-green-50 border-green-200 text-green-900",
+  "bg-yellow-50 border-yellow-200 text-yellow-900",
+  "bg-pink-50 border-pink-200 text-pink-900",
+  "bg-indigo-50 border-indigo-200 text-indigo-900",
+  "bg-teal-50 border-teal-200 text-teal-900",
+  "bg-orange-50 border-orange-200 text-orange-900",
+];
+
+const getBubbleColor = (senderId: string) => {
+  if (!senderId) return "bg-[#f3f4f6] border-gray-200 text-gray-800";
+  let hash = 0;
+  for (let i = 0; i < senderId.length; i++) {
+    hash = senderId.charCodeAt(i) + ((hash << 5) - hash);
   }
-}
+  return bubbleColors[Math.abs(hash) % bubbleColors.length];
+};
 
 export default function ChatPage() {
-  const [events, setEvents] = useState<any[]>([]);
   const [activeEvent, setActiveEvent] = useState<any | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
+  const {
+    events,
+    messagesByEvent,
+    setMessagesByEvent,
+    unreadCounts,
+    setUnreadCounts,
+    isLoadingEvents: isLoading,
+    currentUserId,
+    setCurrentUserId,
+    activeEventIdRef
+  } = useGlobalChat();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pusherRef = useRef<Pusher | null>(null);
   const currentUserIdRef = useRef<string | null>(null);
 
-  // Keep a ref to the current user ID to avoid stale closures in the pusher callback
   useEffect(() => {
     currentUserIdRef.current = currentUserId;
   }, [currentUserId]);
+
+  useEffect(() => {
+    activeEventIdRef.current = activeEvent?.id || null;
+  }, [activeEvent, activeEventIdRef]);
+
+  const activeMessages = activeEvent ? (messagesByEvent[activeEvent.id] || []) : [];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Load chat events
-  useEffect(() => {
-    const fetchEvents = async () => {
-      setIsLoading(true);
-      const res = await getChatEvents();
-      if (res.events && res.events.length > 0) {
-        setEvents(res.events);
-        setActiveEvent(res.events[0]); // auto-select the first one
-      }
-      setIsLoading(false);
-    };
-    fetchEvents();
-  }, []);
-
-  // 1. Initialize Pusher singleton safely attached to the window object
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (!window.pusherInstance) {
-        Pusher.logToConsole = false;
-        window.pusherInstance = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-        });
-      }
-      pusherRef.current = window.pusherInstance;
+    if (!isMessagesLoading) {
+      // Use a small timeout to ensure DOM layout has fully updated before scrolling
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 10);
     }
-  }, []);
+  }, [activeMessages, isMessagesLoading, activeEvent]);
 
-  // 2. Load messages and subscribe to pusher channel when activeEvent changes
+  // Local loading of historical messages when activeEvent changes
   useEffect(() => {
-    if (!activeEvent || !pusherRef.current) return;
+    if (!activeEvent) return;
+
+    // Clear unread count when viewing
+    setUnreadCounts(prev => ({ ...prev, [activeEvent.id]: 0 }));
 
     let isMounted = true;
-    
+
+    if (messagesByEvent[activeEvent.id]) {
+      // Already cached, simulate loading for 500ms for UX
+      setIsMessagesLoading(true);
+      setTimeout(() => {
+        if (isMounted) {
+          setIsMessagesLoading(false);
+        }
+      }, 500);
+      return () => { isMounted = false; };
+    }
+
     const fetchMessages = async () => {
       setIsMessagesLoading(true);
       const res = await getMessages(activeEvent.id);
       if (isMounted && res.messages) {
-        setMessages(res.messages);
+        setMessagesByEvent(prev => ({ ...prev, [activeEvent.id]: res.messages }));
         setCurrentUserId(res.currentUserId || null);
         setIsMessagesLoading(false);
       }
     };
-
     fetchMessages();
 
-    const channel = pusherRef.current.subscribe(activeEvent.id);
-    
-    channel.bind("incoming-message", (data: any) => {
-      if (!isMounted) return;
-      
-      setMessages((prev) => {
-        // Prevent duplication if we sent it
-        if (prev.some(m => m.id === data.id)) return prev;
-        const isMe = data.senderId === currentUserIdRef.current;
-        return [...prev, { ...data, isMe }];
-      });
-    });
-
-    channel.bind("message-flagged", (data: { messageId: string, text: string }) => {
-      if (!isMounted) return;
-      setMessages((prev) => prev.map(m => 
-        m.id === data.messageId ? { ...m, text: data.text } : m
-      ));
-    });
-
-    return () => {
-      isMounted = false;
-      channel.unbind_all();
-      if (pusherRef.current) {
-        pusherRef.current.unsubscribe(activeEvent.id);
-      }
-    };
-  }, [activeEvent]);
+    return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEvent?.id]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !activeEvent || isSending) return;
+    if (!inputText.trim() || !activeEvent) return;
 
     const textToSend = inputText;
     setInputText("");
-    setIsSending(true);
     setErrorMsg("");
 
     // Create a temporary ID for optimistic UI
@@ -139,21 +131,31 @@ export default function ChatPage() {
     };
 
     // Optimistically add it to the UI immediately!
-    setMessages((prev) => [...prev, optimisticMessage]);
+    setMessagesByEvent((prev) => {
+      const existing = prev[activeEvent.id] || [];
+      return { ...prev, [activeEvent.id]: [...existing, optimisticMessage] };
+    });
 
     const res = await sendMessage(activeEvent.id, textToSend);
     
     if (res.error) {
       setErrorMsg(res.error);
-      // Give them the text back and remove the optimistic message
-      setInputText(textToSend); 
-      setMessages((prev) => prev.filter(m => m.id !== tempId));
+      // Give them the text back ONLY if they haven't started typing a new message
+      setInputText((prev) => prev.length > 0 ? prev : textToSend); 
+      setMessagesByEvent((prev) => {
+        if (!prev[activeEvent.id]) return prev;
+        return { ...prev, [activeEvent.id]: prev[activeEvent.id].filter(m => m.id !== tempId) };
+      });
     } else if (res.message) {
       // Replace temp ID with the real DB ID
-      setMessages((prev) => prev.map(m => m.id === tempId ? { ...res.message, isMe: true } : m));
+      setMessagesByEvent((prev) => {
+        if (!prev[activeEvent.id]) return prev;
+        return {
+          ...prev,
+          [activeEvent.id]: prev[activeEvent.id].map(m => m.id === tempId ? { ...res.message, isMe: true } : m)
+        };
+      });
     }
-    
-    setIsSending(false);
   };
 
   return (
@@ -217,6 +219,11 @@ export default function ChatPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline mb-1">
                       <h3 className="font-semibold text-gray-900 text-[15px] truncate">{evt.title}</h3>
+                      {unreadCounts[evt.id] > 0 && (
+                        <span className="bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                          {unreadCounts[evt.id]}
+                        </span>
+                      )}
                     </div>
                     <p className="text-[13px] text-gray-500 truncate">{evt.category}</p>
                   </div>
@@ -313,12 +320,12 @@ export default function ChatPage() {
                     </div>
                   ))}
                 </div>
-              ) : messages.length === 0 ? (
+              ) : activeMessages.length === 0 ? (
                 <div className="flex justify-center mt-10 text-gray-400 text-sm font-medium">
                   Be the first to send a message!
                 </div>
               ) : (
-                messages.map((msg) => (
+                activeMessages.map((msg) => (
                   <div 
                     key={msg.id} 
                     className={`flex flex-col animate-message ${msg.isMe ? 'items-end' : 'items-start'}`}
@@ -330,7 +337,7 @@ export default function ChatPage() {
                       className={`max-w-[75%] md:max-w-[65%] px-5 py-3 shadow-sm text-[15px] leading-relaxed break-words ${
                         msg.isMe 
                           ? 'bg-[#444444] text-white rounded-[20px] rounded-br-sm' 
-                          : 'bg-[#f3f4f6] text-gray-800 border border-gray-200 rounded-[20px] rounded-bl-sm'
+                          : `${getBubbleColor(msg.senderId)} border rounded-[20px] rounded-bl-sm`
                       }`}
                     >
                       <p>{msg.text}</p>
@@ -366,25 +373,20 @@ export default function ChatPage() {
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     placeholder="Type a message..."
-                    disabled={isSending}
                     className="w-full py-3.5 pl-4 pr-12 bg-gray-50 border border-[#c4c7cc] rounded-[20px] text-gray-800 placeholder-[#757575] focus:outline-none focus:ring-1 focus:ring-[#363636] focus:border-[#363636] text-[15px] transition-shadow shadow-sm disabled:opacity-60"
                   />
                 </div>
                 
                 <button 
                   type="submit" 
-                  disabled={!inputText.trim() || isSending}
+                  disabled={!inputText.trim()}
                   className={`p-3.5 rounded-full shrink-0 transition-all shadow-sm ${
-                    inputText.trim() && !isSending
+                    inputText.trim()
                       ? 'bg-[#444444] text-white hover:bg-[#333333] hover:-translate-y-0.5' 
                       : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
                   }`}
                 >
-                  {isSending ? (
-                    <Loader2 className="w-5 h-5 ml-0.5 animate-spin" />
-                  ) : (
-                    <Send className="w-5 h-5 ml-0.5" />
-                  )}
+                  <Send className="w-5 h-5 ml-0.5" />
                 </button>
               </form>
             </div>

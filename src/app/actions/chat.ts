@@ -46,7 +46,10 @@ export async function getChatEvents() {
   }
 }
 
+import { unstable_noStore as noStore } from 'next/cache';
+
 export async function getMessages(eventId: string) {
+  noStore();
   const session = await getServerSession(authOptions);
   if (!session || !session.user?.email) return { error: "Not authenticated" };
 

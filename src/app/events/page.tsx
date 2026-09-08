@@ -17,6 +17,7 @@ import {
   LogOut,
   Loader2
 } from "lucide-react";
+import { useGlobalChat } from "../providers/GlobalChatProvider";
 
 export default function ActivitiesEventsPage() {
   const [activeTab, setActiveTab] = useState<"recommended" | "my-events" | "created-events">("recommended");
@@ -28,6 +29,8 @@ export default function ActivitiesEventsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [processingEventId, setProcessingEventId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  
+  const { totalUnreadCount } = useGlobalChat();
 
   const categories = ["All", "Tech", "Study", "Outdoors", "Social", "Creative"];
 
@@ -123,8 +126,11 @@ export default function ActivitiesEventsPage() {
             <a href="/events" className="text-[#444444] border-b-2 border-[#444444] pb-1 px-2 pt-2" title="Activities & Events">
               <CalendarRange className="w-5 h-5" />
             </a>
-            <a href="/chat" className="hover:text-[#444444] transition-colors p-2" title="Chat">
+            <a href="/chat" className="hover:text-[#444444] transition-colors p-2 relative" title="Chat">
               <MessageSquare className="w-5 h-5" />
+              {totalUnreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
             </a>
             <a href="/profile" className="hover:text-[#444444] transition-colors p-2" title="Profile">
               <User className="w-5 h-5" />

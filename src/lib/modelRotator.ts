@@ -99,9 +99,20 @@ ${JSON.stringify(messages)}
       const responseText = result.response.text().trim();
       let flaggedIds: string[] = [];
       try {
-        flaggedIds = JSON.parse(responseText);
-        if (!Array.isArray(flaggedIds)) {
-           flaggedIds = [];
+        let parsed: any;
+        try {
+          parsed = JSON.parse(responseText);
+        } catch (e) {
+          const match = responseText.match(/\[.*\]/s);
+          if (match) parsed = JSON.parse(match[0]);
+          else throw e;
+        }
+
+        if (Array.isArray(parsed)) {
+          flaggedIds = parsed;
+        } else if (parsed && typeof parsed === 'object') {
+          const arrays = Object.values(parsed).filter(Array.isArray);
+          if (arrays.length > 0) flaggedIds = arrays[0] as string[];
         }
       } catch (e) {
         console.error("Failed to parse Gemini batch response:", responseText);

@@ -20,6 +20,7 @@ import {
   Headphones,
   LogOut
 } from "lucide-react";
+import { useGlobalChat } from "../providers/GlobalChatProvider";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
 
@@ -56,6 +57,7 @@ const initialMockUser = {
 export default function ProfilePage() {
   const [user, setUser] = useState(initialMockUser);
   const [isEditing, setIsEditing] = useState(false);
+  const { totalUnreadCount } = useGlobalChat();
   
   // Form State (cloned from user object when editing)
   const [editDisplayName, setEditDisplayName] = useState(user.displayName);
@@ -139,8 +141,11 @@ export default function ProfilePage() {
             <a href="/events" className="hover:text-[#444444] transition-colors p-2" title="Activities & Events">
               <CalendarRange className="w-5 h-5" />
             </a>
-            <a href="/chat" className="hover:text-[#444444] transition-colors p-2" title="Chat">
+            <a href="/chat" className="hover:text-[#444444] transition-colors p-2 relative" title="Chat">
               <MessageSquare className="w-5 h-5" />
+              {totalUnreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+              )}
             </a>
             <a href="/profile" className="text-[#444444] border-b-2 border-[#444444] pb-1 px-2 pt-2" title="Profile">
               <User className="w-5 h-5" />

@@ -5,5 +5,7 @@ export const pusherServer = new Pusher({
   key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
   secret: process.env.PUSHER_SECRET!,
   cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-  useTLS: true,
+  host: process.env.NEXT_PUBLIC_PUSHER_HOST || undefined,
+  port: process.env.NEXT_PUBLIC_PUSHER_PORT || undefined,
+  useTLS: process.env.NEXT_PUBLIC_PUSHER_HOST ? false : true,
 });

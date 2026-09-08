@@ -59,7 +59,7 @@ class ModerationQueue {
           // Broadcast to clients to update text
           await pusherServer.trigger(item.eventId, 'message-flagged', { 
             messageId: item.messageId,
-            text: "This message has been removed for violating our community guidelines"
+            text: "This message has been removed for violating our community guidelines."
           });
         }
       }
