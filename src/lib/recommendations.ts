@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { aiLimiter } from "./aiLimiter";
 
 /**
  * Computes the Cosine Similarity between two numerical vectors of the same length.
@@ -30,11 +31,17 @@ export async function generateRationale(
   eventContext: string,
   apiKey: string | undefined
 ): Promise<string> {
-  if (!apiKey) return "Highly recommended based on your AI-extracted profile matches.";
+  if (!aiLimiter.canRequest()) return "Highly recommended based on your AI-extracted profile matches.";
   
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+    const apiKeyRaw = process.env.GEMINI_API_KEY || '';
+    const apiKeys = apiKeyRaw.split(',').filter(Boolean);
+    const key = apiKeys[0];
+    
+    if (!key) return "Great match based on shared interests.";
+
+    const genAI = new GoogleGenerativeAI(key);
+    const model = genAI.getGenerativeModel({ model: "models/gemma-4-26b-a4b-it" });
     
     const prompt = `
 Given the following User Profile and Event Details, write a 1-sentence personalized rationale explaining why they are a good match.
@@ -49,8 +56,12 @@ Event Details: ${eventContext}
     // Clean up any potential line breaks or quotes
     text = text.replace(/[\n\r"]/g, '').trim();
     return text;
-  } catch (error) {
-    console.error("Failed to generate rationale:", error);
+  } catch (error: any) {
+    if (error?.message?.includes("429")) {
+      console.warn("Gemini Rate Limited during recommendation rationale. Falling back to default.");
+    } else {
+      console.error("Failed to generate rationale:", error);
+    }
     return "Highly recommended based on your profile and social energy preferences.";
   }
 }

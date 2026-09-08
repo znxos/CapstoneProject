@@ -40,6 +40,7 @@ model User {
   // Relations
   hostedEvents              Event[]            @relation("HostedEvents")
   participatedEvents        EventParticipant[]
+  messages                  Message[]
 }
 
 model Event {
@@ -60,6 +61,7 @@ model Event {
   host                      User               @relation("HostedEvents", fields: [hostId], references: [id])
   
   participants              EventParticipant[]
+  messages                  Message[]
   
   createdAt                 DateTime           @default(now())
   updatedAt                 DateTime           @updatedAt
@@ -91,4 +93,16 @@ model PasswordResetToken {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  eventId   String
+  senderId  String
+  text      String
+  timestamp DateTime @default(now())
+  isFlagged Boolean  @default(false)
+  
+  event     Event    @relation(fields: [eventId], references: [id])
+  sender    User     @relation(fields: [senderId], references: [id])
 }
