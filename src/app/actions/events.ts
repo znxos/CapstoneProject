@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth/next";
 import { PrismaClient } from "@prisma/client";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const prisma = new PrismaClient();
 
@@ -15,7 +16,7 @@ export async function createEvent(data: {
   location: string;
   maxParticipants: number;
 }) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session || !session.user?.email) {
     return { error: "Not authenticated" };
   }
@@ -81,7 +82,7 @@ export async function createEvent(data: {
 }
 
 export async function joinEvent(eventId: string) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session || !session.user?.email) {
     return { error: "Not authenticated" };
   }
@@ -119,7 +120,7 @@ export async function joinEvent(eventId: string) {
 }
 
 export async function leaveEvent(eventId: string) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session || !session.user?.email) {
     return { error: "Not authenticated" };
   }
@@ -148,7 +149,7 @@ export async function leaveEvent(eventId: string) {
 }
 
 export async function getEvents() {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session || !session.user?.email) {
     return { error: "Not authenticated" };
   }

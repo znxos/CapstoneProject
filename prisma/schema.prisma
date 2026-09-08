@@ -31,6 +31,7 @@ model User {
   languages                 String[] 
   lookingForTags            String[]
   extractedAiTags           String[]
+  cachedVectorEmbedding     Float[]
   
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt

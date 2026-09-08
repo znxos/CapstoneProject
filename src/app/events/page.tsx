@@ -14,7 +14,8 @@ import {
   SearchX,
   MapPin,
   Clock,
-  LogOut
+  LogOut,
+  Loader2
 } from "lucide-react";
 
 export default function ActivitiesEventsPage() {
@@ -23,6 +24,7 @@ export default function ActivitiesEventsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [processingEventId, setProcessingEventId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
 
   const categories = ["All", "Tech", "Study", "Outdoors", "Social", "Creative"];
@@ -53,6 +55,7 @@ export default function ActivitiesEventsPage() {
   }
 
   const handleJoinLeave = async (id: string, isJoined: boolean) => {
+    setProcessingEventId(id);
     const { joinEvent, leaveEvent } = await import("../actions/events");
     if (isJoined) {
       await leaveEvent(id);
@@ -60,6 +63,7 @@ export default function ActivitiesEventsPage() {
       await joinEvent(id);
     }
     await loadEvents();
+    setProcessingEventId(null);
   };
 
   const handleEditEvent = (id: string) => {
@@ -303,16 +307,20 @@ export default function ActivitiesEventsPage() {
                   ) : (
                     <button 
                       onClick={() => handleJoinLeave(event.id, isJoined)}
-                      disabled={isFull && !isJoined}
-                      className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 shadow-sm ${
+                      disabled={(isFull && !isJoined) || processingEventId === event.id}
+                      className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 shadow-sm flex items-center justify-center min-w-[80px] ${
                         isJoined 
                           ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
                           : isFull 
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
                             : "bg-white border border-gray-300 text-[#444444] hover:border-[#444444] hover:bg-gray-50"
-                      }`}
+                      } ${(processingEventId === event.id) ? "opacity-75 cursor-wait" : ""}`}
                     >
-                      {isJoined ? "Leave" : isFull ? "Full" : "Join"}
+                      {processingEventId === event.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        isJoined ? "Leave" : isFull ? "Full" : "Join"
+                      )}
                     </button>
                   )}
                 </div>
