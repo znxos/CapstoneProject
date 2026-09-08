@@ -15,7 +15,7 @@ export async function extractTagsFromBio(bio: string): Promise<string[]> {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "models/gemma-4-26b-a4b-it" });
+    const model = genAI.getGenerativeModel({ model: "models/gemini-3.6-flash" });
 
     const prompt = `
 Analyze the following user bio and extract up to 5 succinct hobby or interest tags.

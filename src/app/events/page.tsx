@@ -21,110 +21,80 @@ export default function ActivitiesEventsPage() {
   const [activeTab, setActiveTab] = useState<"recommended" | "my-events" | "created-events">("recommended");
   const [activeCategory, setActiveCategory] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [joinedEvents, setJoinedEvents] = useState<number[]>([2]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formError, setFormError] = useState("");
 
   const categories = ["All", "Tech", "Study", "Outdoors", "Social", "Creative"];
 
-  // Enhanced Dummy data with gradients and participants
-  const events = [
-    {
-      id: 1,
-      title: "Late-night Study & Coffee",
-      category: "Study",
-      similarity: 95,
-      rationale: "Recommended because you both enjoy late-night study sessions and indie gaming.",
-      datetime: "Tonight at 9:00 PM",
-      location: "Library Cafe",
-      joinedCount: 4,
-      capacity: 10,
-      gradient: "bg-gradient-to-br from-amber-200 via-orange-300 to-rose-300",
-      participants: [
-        "https://i.pravatar.cc/150?img=12", 
-        "https://i.pravatar.cc/150?img=33", 
-        "https://i.pravatar.cc/150?img=45", 
-        "https://i.pravatar.cc/150?img=22"
-      ]
-    },
-    {
-      id: 2,
-      title: "Weekend Hiking Group",
-      category: "Outdoors",
-      similarity: 82,
-      rationale: "Recommended because your social energy profile indicates a preference for active, small-group gatherings.",
-      datetime: "Saturday at 8:00 AM",
-      location: "Table Mountain Base",
-      joinedCount: 8,
-      capacity: 10,
-      gradient: "bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-500",
-      participants: [
-        "https://i.pravatar.cc/150?img=51", 
-        "https://i.pravatar.cc/150?img=52", 
-        "https://i.pravatar.cc/150?img=53"
-      ]
-    },
-    {
-      id: 3,
-      title: "React Native Workshop",
-      category: "Tech",
-      similarity: 78,
-      rationale: "Recommended because you mentioned an interest in mobile development and hackathons.",
-      datetime: "Tomorrow at 2:00 PM",
-      location: "Computer Lab 4",
-      joinedCount: 9,
-      capacity: 10,
-      gradient: "bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500",
-      participants: [
-        "https://i.pravatar.cc/150?img=61", 
-        "https://i.pravatar.cc/150?img=62", 
-        "https://i.pravatar.cc/150?img=63",
-        "https://i.pravatar.cc/150?img=64",
-        "https://i.pravatar.cc/150?img=65"
-      ]
-    },
-    {
-      id: 4,
-      title: "Campus Board Game Night",
-      category: "Social",
-      similarity: 92,
-      rationale: "Recommended because you like board games and medium-energy social settings.",
-      datetime: "Friday at 7:00 PM",
-      location: "Student Center Main Hall",
-      joinedCount: 15,
-      capacity: 20,
-      gradient: "bg-gradient-to-br from-blue-400 via-indigo-500 to-violet-600",
-      participants: [
-        "https://i.pravatar.cc/150?img=11", 
-        "https://i.pravatar.cc/150?img=21", 
-        "https://i.pravatar.cc/150?img=31"
-      ]
+  const loadEvents = async () => {
+    setIsLoading(true);
+    const { getEvents } = await import("../actions/events");
+    const result = await getEvents();
+    if (result && "events" in result && result.events) {
+      setEvents(result.events);
     }
-  ];
+    setIsLoading(false);
+  };
+
+  React.useEffect(() => {
+    loadEvents();
+  }, []);
 
   let displayEvents = events;
   if (activeTab === "my-events") {
-    displayEvents = displayEvents.filter(e => joinedEvents.includes(e.id));
+    displayEvents = displayEvents.filter(e => e.isJoined);
   } else if (activeTab === "created-events") {
-    displayEvents = []; // Assuming no created events for dummy data to show off the empty state
+    displayEvents = displayEvents.filter(e => e.isHost);
   }
 
   if (activeCategory !== "All") {
     displayEvents = displayEvents.filter(e => e.category === activeCategory);
   }
 
-  const handleJoinLeave = (id: number) => {
-    if (joinedEvents.includes(id)) {
-      setJoinedEvents(joinedEvents.filter(eventId => eventId !== id));
+  const handleJoinLeave = async (id: string, isJoined: boolean) => {
+    const { joinEvent, leaveEvent } = await import("../actions/events");
+    if (isJoined) {
+      await leaveEvent(id);
     } else {
-      setJoinedEvents([...joinedEvents, id]);
+      await joinEvent(id);
     }
+    await loadEvents();
   };
 
-  const handleEditEvent = (id: number) => {
+  const handleEditEvent = (id: string) => {
     console.log("Edit event", id);
   };
 
-  const handleCancelEvent = (id: number) => {
-    console.log("Cancel event", id);
+  const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const date = formData.get("date") as string;
+    const startTime = formData.get("startTime") as string;
+    const endTime = formData.get("endTime") as string;
+    
+    const startDatetime = `${date}T${startTime}:00`;
+    const endDatetime = `${date}T${endTime}:00`;
+    
+    setFormError("");
+    const { createEvent } = await import("../actions/events");
+    const result = await createEvent({
+      title: formData.get("title") as string,
+      category: formData.get("category") as string,
+      description: formData.get("description") as string, 
+      startTime: startDatetime,
+      endTime: endDatetime,
+      location: formData.get("location") as string,
+      maxParticipants: parseInt(formData.get("capacity") as string) || 10,
+    });
+    
+    if (result && result.error) {
+      setFormError(result.error);
+      return;
+    }
+    
+    setIsModalOpen(false);
+    await loadEvents();
   };
 
   return (
@@ -218,9 +188,9 @@ export default function ActivitiesEventsPage() {
         {/* Event Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayEvents.map((event) => {
-            const isJoined = joinedEvents.includes(event.id);
+            const isJoined = event.isJoined;
             const isFull = event.joinedCount >= event.capacity;
-            const isCreatedByMe = activeTab === "created-events";
+            const isCreatedByMe = event.isHost;
             const isHighMatch = event.similarity >= 90;
             
             return (
@@ -249,6 +219,12 @@ export default function ActivitiesEventsPage() {
                 <div className="px-6 pt-5 pb-2 flex-grow">
                   <h3 className="text-xl font-bold text-gray-900 mb-3 leading-tight group-hover:text-[#444444] transition-colors">{event.title}</h3>
                   
+                  {event.description && (
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                      {event.description}
+                    </p>
+                  )}
+
                   <div className="flex items-center text-sm text-gray-500 mb-2 font-medium">
                     <Clock className="w-4 h-4 mr-2.5 text-gray-400 shrink-0" />
                     {event.datetime}
@@ -296,7 +272,7 @@ export default function ActivitiesEventsPage() {
                       </span>
                       {/* Avatar Social Proof Cluster */}
                       <div className="flex -space-x-2">
-                        {event.participants.slice(0, 3).map((img, idx) => (
+                        {event.participants.slice(0, 3).map((img: string, idx: number) => (
                           <img key={idx} src={img} className="w-6 h-6 rounded-full border-2 border-white shadow-sm object-cover" alt="Participant" />
                         ))}
                         {event.participants.length > 3 && (
@@ -326,7 +302,7 @@ export default function ActivitiesEventsPage() {
                     </div>
                   ) : (
                     <button 
-                      onClick={() => handleJoinLeave(event.id)}
+                      onClick={() => handleJoinLeave(event.id, isJoined)}
                       disabled={isFull && !isJoined}
                       className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 shadow-sm ${
                         isJoined 
@@ -379,26 +355,62 @@ export default function ActivitiesEventsPage() {
               </button>
             </div>
             
-            <form className="p-6 space-y-5" onSubmit={(e) => { e.preventDefault(); setIsModalOpen(false); }}>
+            {formError && (
+              <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+                <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-red-500 font-bold text-xs">!</span>
+                </div>
+                <p className="text-sm text-red-600 font-medium">{formError}</p>
+              </div>
+            )}
+            
+            <form className="p-6 space-y-5" onSubmit={handleCreateEvent}>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="title">Event Title</label>
-                <input required id="title" type="text" placeholder="e.g., Sunday Soccer Scrimmage" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                <input required id="title" name="title" type="text" placeholder="e.g., Sunday Soccer Scrimmage" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="date">Date</label>
-                  <input required id="date" type="date" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="category">Category</label>
+                  <select required id="category" name="category" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm bg-white">
+                    <option value="" disabled selected>Select Category</option>
+                    <option value="Tech">Tech</option>
+                    <option value="Study">Study</option>
+                    <option value="Outdoors">Outdoors</option>
+                    <option value="Social">Social</option>
+                    <option value="Creative">Creative</option>
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="time">Time</label>
-                  <input required id="time" type="time" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="capacity">Capacity</label>
+                  <input required id="capacity" name="capacity" type="number" min="2" placeholder="e.g., 10" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="date">Date</label>
+                  <input required id="date" name="date" type="date" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="startTime">Start Time</label>
+                  <input required id="startTime" name="startTime" type="time" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="endTime">End Time</label>
+                  <input required id="endTime" name="endTime" type="time" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="location">Location</label>
-                <input required id="location" type="text" placeholder="e.g., Campus Gym" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                <input required id="location" name="location" type="text" placeholder="e.g., Campus Gym" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="description">Description</label>
+                <textarea required id="description" name="description" rows={3} placeholder="What is this event about?" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm"></textarea>
               </div>
               
               <div className="pt-2">
