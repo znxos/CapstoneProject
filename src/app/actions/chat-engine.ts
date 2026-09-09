@@ -145,19 +145,22 @@ export async function sendMessage(eventId: string, text: string) {
     await pusherServer.trigger(eventId, 'incoming-message', payload).catch(console.error);
 
     // 6. Inline Moderation (Required for Vercel Serverless)
+    let finalPayloadText = payload.text;
+    
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (apiKey) {
         const { executeModerationWithFallback } = await import("@/lib/ai/chat");
         const isFlagged = await executeModerationWithFallback(apiKey, text, 3);
         if (isFlagged) {
+          finalPayloadText = "This message has been removed for violating our community guidelines.";
           await prisma.message.update({
             where: { id: message.id },
             data: { isFlagged: true }
           });
           await pusherServer.trigger(eventId, 'message-flagged', { 
             messageId: message.id,
-            text: "This message has been removed for violating our community guidelines."
+            text: finalPayloadText
           });
         }
       }
@@ -165,6 +168,7 @@ export async function sendMessage(eventId: string, text: string) {
       console.error("Moderation error:", err);
     }
 
+    payload.text = finalPayloadText;
     return { success: true, message: payload };
   } catch (error) {
     console.error("SendMessage error:", error);
