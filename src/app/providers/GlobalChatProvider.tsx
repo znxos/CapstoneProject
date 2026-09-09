@@ -91,10 +91,7 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
         Pusher.logToConsole = false;
         window.pusherInstance = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
           cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-          wsHost: process.env.NEXT_PUBLIC_PUSHER_HOST || undefined,
-          wsPort: process.env.NEXT_PUBLIC_PUSHER_PORT ? parseInt(process.env.NEXT_PUBLIC_PUSHER_PORT) : undefined,
-          forceTLS: process.env.NEXT_PUBLIC_PUSHER_HOST ? false : true,
-          disableStats: true,
+          forceTLS: true,
         });
       }
       pusherRef.current = window.pusherInstance;
