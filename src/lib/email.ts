@@ -3,10 +3,7 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendVerificationEmail(email: string, token: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-  const confirmLink = `${baseUrl}/api/verify?token=${token}`;
-
-
+  const confirmLink = `${process.env.NEXTAUTH_URL}/api/verify?token=${token}`;
 
   try {
     const data = await resend.emails.send({
