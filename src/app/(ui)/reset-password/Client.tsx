@@ -76,7 +76,7 @@ export default function ResetPasswordClient({ token }: { token: string }) {
             </header>
 
             {/* Password Reset Form */}
-            <form className="space-y-4" id="reset-password-form" onSubmit={handleSubmit}>
+            <form method="POST" className="space-y-4" id="reset-password-form" onSubmit={handleSubmit}>
               
               {error && (
                 <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center">

@@ -65,11 +65,10 @@ export default function TwoFactorAuthPage() {
 
             {/* VerificationForm */}
             <form
-              action="#"
+              method="POST"
               className="mt-6"
               data-purpose="otp-form"
               id="verification-form"
-              method="POST"
               onSubmit={(e) => e.preventDefault()}
             >
               {/* Input Group Label */}

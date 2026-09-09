@@ -80,7 +80,7 @@ function LoginContent() {
               </div>
             )}
 
-            <form action="#" className="space-y-4" data-purpose="login-form" onSubmit={handleSubmit}>
+            <form method="POST" className="space-y-4" data-purpose="login-form" onSubmit={handleSubmit}>
               {/* Email Input Group */}
               <div className="space-y-1.5" data-purpose="input-group-email">
                 <label className="block text-[14px] text-subtext font-normal" htmlFor="email">

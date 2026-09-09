@@ -95,7 +95,7 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form method="POST" className="space-y-4" onSubmit={handleSubmit}>
             {/* Email Address Field */}
             <div data-purpose="input-group-email">
               <label

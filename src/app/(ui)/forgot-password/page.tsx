@@ -62,6 +62,7 @@ export default function ForgotPasswordPage() {
             
             {/* Reset Form */}
             <form
+              method="POST"
               className="space-y-5"
               data-purpose="reset-request-form"
               onSubmit={handleSubmit}
