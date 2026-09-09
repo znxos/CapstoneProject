@@ -144,12 +144,26 @@ export async function sendMessage(eventId: string, text: string) {
     // We MUST await this in Vercel so the serverless function doesn't die before sending!
     await pusherServer.trigger(eventId, 'incoming-message', payload).catch(console.error);
 
-    // 6. Post-Moderation (100% Asynchronous)
-    moderationQueue.push({
-      messageId: message.id,
-      eventId,
-      text
-    });
+    // 6. Inline Moderation (Required for Vercel Serverless)
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (apiKey) {
+        const { executeModerationWithFallback } = await import("@/lib/ai/chat");
+        const isFlagged = await executeModerationWithFallback(apiKey, text, 3);
+        if (isFlagged) {
+          await prisma.message.update({
+            where: { id: message.id },
+            data: { isFlagged: true }
+          });
+          await pusherServer.trigger(eventId, 'message-flagged', { 
+            messageId: message.id,
+            text: "This message has been removed for violating our community guidelines."
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Moderation error:", err);
+    }
 
     return { success: true, message: payload };
   } catch (error) {
