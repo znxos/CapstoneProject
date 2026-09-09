@@ -1,9 +1,9 @@
-class AILimiter {
+export class AILimiter {
   private timestamps: number[] = [];
-  
-  private get limit(): number {
-    const keysCount = (process.env.GEMINI_API_KEY || "").split(',').filter(Boolean).length;
-    return Math.max(1, 9 * (keysCount || 1)); // 1 RPM per model per key
+  private limit: number;
+
+  constructor(limit: number) {
+    this.limit = limit;
   }
   
   canRequest(): boolean {
@@ -20,5 +20,6 @@ class AILimiter {
   }
 }
 
-// Export a singleton instance to be shared across the Node process in dev
-export const aiLimiter = new AILimiter();
+// Export singleton instances to be shared across the Node process in dev
+export const chatLimiter = new AILimiter(5); // Strict 5 RPM for Flash moderation
+export const eventsLimiter = new AILimiter(5); // 30 RPM for Gemma recommendations

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Search, X, Check, GraduationCap, Zap, Headphones, Coffee, PartyPopper, Target, PenTool, Sparkles, ChevronDown } from "lucide-react";
 import { getSession } from "next-auth/react";
 import { completeUserOnboarding } from "../actions/user";
-import { extractTagsFromBio } from "../actions/ai";
+import { extractTagsFromBio } from "@/lib/ai/onboarding";
 
 const AVAILABLE_LANGUAGES = [
   "English", "Afrikaans", "isiZulu", "isiXhosa", "Sepedi", 

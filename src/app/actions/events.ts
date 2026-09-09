@@ -1,10 +1,11 @@
 "use server";
 
 import { getServerSession } from "next-auth/next";
+import crypto from "crypto";
 import { PrismaClient } from "@prisma/client";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateEventEmbedding, generateUserEmbedding } from "@/lib/ai/events";
 import { authOptions } from "@/lib/auth";
-import { computeCosineSimilarity, generateRationale } from "@/lib/recommendations";
+import { computeCosineSimilarity, generateRationale, generateBatchRationales } from "@/lib/recommendations";
 
 const prisma = new PrismaClient();
 
@@ -38,16 +39,11 @@ export async function createEvent(data: {
 
     let vector: number[] = [];
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (apiKey) {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-embedding-2" });
-        const textToEmbed = `${data.title}. ${data.category}. ${data.description}`;
-        const result = await model.embedContent(textToEmbed);
-        vector = result.embedding.values;
-      } else {
-        console.warn("GEMINI_API_KEY is not set. Skipping embeddings.");
-      }
+      vector = await generateEventEmbedding({ 
+        title: data.title, 
+        category: data.category, 
+        description: data.description 
+      });
     } catch (e) {
       console.warn("Failed to generate embedding", e);
     }
@@ -173,16 +169,10 @@ export async function getEvents(params?: {
     // --- RECOMENDER SYSTEM: PRE-REQUISITE ---
     // Ensure User has a cached vector embedding
     let userVector = (user as any).cachedVectorEmbedding as number[] | undefined;
-    if (!userVector || userVector.length === 0) {
+    if (tab === "recommended" && (!userVector || userVector.length === 0)) {
       try {
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (apiKey) {
-          const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-embedding-2" });
-          const textToEmbed = `Bio: ${user.bio || ''}. Interests: ${user.interests.join(', ')}. Looking for: ${user.lookingForTags.join(', ')}. AI Tags: ${user.extractedAiTags.join(', ')}. Social Energy: ${user.socialEnergyLevel || ''}`;
-          const result = await model.embedContent(textToEmbed);
-          userVector = result.embedding.values;
-          
+        userVector = await generateUserEmbedding(user as any);
+        if (userVector && userVector.length > 0) {
           await prisma.user.update({
             where: { id: user.id },
             data: { cachedVectorEmbedding: userVector }
@@ -279,6 +269,8 @@ export async function getEvents(params?: {
       finalFilteredEvents = finalFilteredEvents.filter(e => e.isJoined);
     } else if (tab === "created-events") {
       finalFilteredEvents = finalFilteredEvents.filter(e => e.isHost);
+    } else if (tab === "recommended") {
+      finalFilteredEvents = finalFilteredEvents.filter(e => !e.isHost);
     }
 
     if (category !== "All") {
@@ -291,16 +283,73 @@ export async function getEvents(params?: {
 
     // --- RECOMMENDER SYSTEM: LAYER 3 (LLM Rationale) ---
     const apiKey = process.env.GEMINI_API_KEY;
-    const finalEvents = await Promise.all(paginatedEvents.map(async ({ event, score, isJoined, isHost }, index) => {
+    
+    // Hash the user's profile to detect changes
+    const userContext = `Interests: ${user.interests.join(', ')}. Energy: ${user.socialEnergyLevel}. Bio: ${user.bio}`;
+    const userProfileHash = crypto.createHash('sha256').update(userContext).digest('hex');
+
+    const rationaleMap = new Map<string, any>();
+    let batchResults: Record<string, string> = {};
+
+    // Bulk fetch existing rationales for this page's events regardless of tab
+    const existingRationalesList = await (prisma as any).eventRationale.findMany({
+      where: {
+        userId: user.id,
+        eventId: { in: paginatedEvents.map((e: any) => e.event.id) }
+      }
+    });
+    existingRationalesList.forEach((r: any) => rationaleMap.set(r.eventId, r));
+
+    if (tab === "recommended") {
+      // 1. Identify cache misses
+      const cacheMisses: { eventId: string, eventContext: string }[] = [];
+      for (const { event } of paginatedEvents) {
+        const cached = rationaleMap.get(event.id);
+        if (!cached || cached.userProfileHash !== userProfileHash) {
+          cacheMisses.push({
+            eventId: event.id,
+            eventContext: `Title: ${event.title}. Category: ${event.category}. Description: ${event.description}`
+          });
+        }
+      }
+
+      // 2. Batch generate rationales for all missed events
+      if (cacheMisses.length > 0 && apiKey) {
+        batchResults = await generateBatchRationales(userContext, cacheMisses, apiKey);
+        
+        // 3. Bulk Upsert the newly generated rationales to the DB
+        const upserts = Object.entries(batchResults).map(([eventId, rationale]) => {
+          return (prisma as any).eventRationale.upsert({
+            where: { eventId_userId: { eventId, userId: user.id } },
+            update: { rationale, userProfileHash },
+            create: { eventId, userId: user.id, rationale, userProfileHash }
+          });
+        });
+        await Promise.all(upserts);
+      }
+    }
+
+    // 4. Assemble final events
+    const finalEvents = paginatedEvents.map(({ event, score, isJoined, isHost }) => {
       let rationale = `Recommended because this ${event.category} event matches your interests.`;
+      const cached = rationaleMap.get(event.id);
       
-      // Only invoke LLM for top 3 to save latency/costs
-      if (index < 3 && apiKey) {
-        const userContext = `Interests: ${user.interests.join(', ')}. Energy: ${user.socialEnergyLevel}. Bio: ${user.bio}`;
-        const eventContext = `Title: ${event.title}. Category: ${event.category}. Description: ${event.description}`;
-        rationale = await generateRationale(userContext, eventContext, apiKey);
-      } else if (score > 80) {
-        rationale = "Highly recommended based on your AI-extracted profile matches and semantic similarity.";
+      if (isHost) {
+        rationale = "You are hosting this event.";
+      } else if (isJoined) {
+        if (cached) {
+          rationale = cached.rationale;
+        } else {
+          rationale = "You have joined this event.";
+        }
+      } else {
+        if (cached && cached.userProfileHash === userProfileHash) {
+          rationale = cached.rationale;
+        } else if (batchResults[event.id]) {
+          rationale = batchResults[event.id];
+        } else if (score > 80) {
+          rationale = "Highly recommended based on your AI-extracted profile matches and semantic similarity.";
+        }
       }
 
       // Format Date
@@ -342,7 +391,7 @@ export async function getEvents(params?: {
         isJoined,
         isHost
       };
-    }));
+    });
 
     return { events: finalEvents, totalCount };
   } catch (error) {

@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { pusherServer } from "./pusher";
-import { aiLimiter } from "./aiLimiter";
-import { executeBatchModerationWithFallback } from "./modelRotator";
+import { chatLimiter } from "./aiLimiter";
+import { executeBatchModerationWithFallback } from "./ai/chat";
 
 const prisma = new PrismaClient();
 
@@ -33,7 +33,7 @@ class ModerationQueue {
     if (this.queue.length === 0) return;
     
     // Only process if the rate limiter allows us
-    if (!aiLimiter.canRequest()) return;
+    if (!chatLimiter.canRequest()) return;
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return;

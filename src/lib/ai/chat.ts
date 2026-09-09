@@ -103,7 +103,7 @@ ${JSON.stringify(messages)}
         try {
           parsed = JSON.parse(responseText);
         } catch (e) {
-          const match = responseText.match(/\[.*\]/s);
+          const match = responseText.match(/\[[\s\S]*\]/);
           if (match) parsed = JSON.parse(match[0]);
           else throw e;
         }
