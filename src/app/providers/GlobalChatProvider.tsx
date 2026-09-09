@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
-import { getChatEvents } from "../actions/chat";
+import { getChatEvents } from "../actions/chat-engine";
 
 declare global {
   interface Window {

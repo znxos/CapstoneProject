@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Send, Users, Search, MoreVertical, Paperclip, Smile, LayoutDashboard, CalendarRange, User, LogOut, Loader2, AlertCircle, MessageSquare } from "lucide-react";
 import { Merriweather } from "next/font/google";
 import { signOut } from "next-auth/react";
-import { getMessages, sendMessage } from "../actions/chat";
-import { useGlobalChat } from "../providers/GlobalChatProvider";
+import { getMessages, sendMessage } from "@/app/actions/chat-engine";
+import { useGlobalChat } from "@/app/providers/GlobalChatProvider";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
 
@@ -58,7 +58,28 @@ export default function ChatPage() {
 
   useEffect(() => {
     activeEventIdRef.current = activeEvent?.id || null;
+    
+    // Update URL when active event changes
+    if (activeEvent?.id) {
+      const params = new URLSearchParams(window.location.search);
+      params.set("eventid", activeEvent.id);
+      window.history.replaceState(null, '', `?${params.toString()}`);
+    }
   }, [activeEvent, activeEventIdRef]);
+
+  // Read eventid from URL on load and set active event
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const eventIdFromUrl = params.get("eventid");
+    
+    if (eventIdFromUrl && events.length > 0 && !activeEvent) {
+      const targetEvent = events.find((e: any) => e.id === eventIdFromUrl);
+      if (targetEvent) {
+        setActiveEvent(targetEvent);
+        setIsMessagesLoading(true);
+      }
+    }
+  }, [events, activeEvent]);
 
   const activeMessages = activeEvent ? (messagesByEvent[activeEvent.id] || []) : [];
 

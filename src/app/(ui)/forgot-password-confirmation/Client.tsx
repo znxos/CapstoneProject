@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Merriweather } from "next/font/google";
-import { requestPasswordReset } from "../actions/auth";
+import { requestPasswordReset } from "@/app/actions/auth-engine";
 import Head from "next/head";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });

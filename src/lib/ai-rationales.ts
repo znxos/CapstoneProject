@@ -52,7 +52,8 @@ export async function generateRationale(
     
     const prompt = `
 Given the following User Profile and Event Details, write a 1-sentence personalized rationale explaining why they are a good match.
-Speak directly to the user (e.g. "Recommended because you both..."). Keep it very concise and natural.
+Specifically consider any compatibilities between the User Profile and the [HOST PROFILE] included in the Event Details (e.g. shared university, shared interests, complementary social energy).
+Speak directly to the user (e.g. "Recommended because you and the host both..."). Keep it very concise and natural.
 Avoid markdown or extra formatting.
 
 User Profile: ${userContext}
@@ -126,7 +127,8 @@ export async function generateBatchRationales(userContext: string, eventsContext
   
   const prompt = `
 Given the following User Profile and a list of Events, write a 1-sentence personalized rationale for EACH event explaining why they are a good match.
-Speak directly to the user (e.g. "Recommended because you both..."). Keep it very concise and natural.
+Specifically consider any compatibilities between the User Profile and the [HOST PROFILE] included in the Event Details (e.g. shared university, shared interests, complementary social energy).
+Speak directly to the user (e.g. "Recommended because you and the host both..."). Keep it very concise and natural.
 
 Return the result STRICTLY as a JSON object where the keys are the event IDs and the values are the 1-sentence rationales.
 Output ONLY the raw JSON object. Do NOT include any explanations, thinking steps, markdown blocks (like \`\`\`json), or extra text.

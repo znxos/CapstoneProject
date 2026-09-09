@@ -20,7 +20,7 @@ import {
   Headphones,
   LogOut
 } from "lucide-react";
-import { useGlobalChat } from "../providers/GlobalChatProvider";
+import { useGlobalChat } from "@/app/providers/GlobalChatProvider";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
 

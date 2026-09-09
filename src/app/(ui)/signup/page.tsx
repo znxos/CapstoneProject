@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Head from "next/head";
-import { signupUser } from "../actions/auth";
+import { signupUser } from "@/app/actions/auth-engine";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");

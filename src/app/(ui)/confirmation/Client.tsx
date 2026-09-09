@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Head from "next/head";
 import { Lora } from "next/font/google";
-import { resendVerificationEmailAction } from "../actions/auth";
+import { resendVerificationEmailAction } from "@/app/actions/auth-engine";
 
 const lora = Lora({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 

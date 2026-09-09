@@ -2,7 +2,7 @@
 
 import { getServerSession } from "next-auth/next";
 import { PrismaClient } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/auth-config";
 import { pusherServer } from "@/lib/pusher";
 
 import { moderationQueue } from "@/lib/moderationQueue";
@@ -65,7 +65,7 @@ export async function getMessages(eventId: string) {
       id: m.id,
       senderId: m.senderId,
       senderName: m.sender.displayName || 'Unknown',
-      text: m.isFlagged ? "This message has been removed for violating our community guidelines" : m.text,
+      text: m.isFlagged ? "This message has been removed for violating our community guidelines." : m.text,
       time: m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: user ? m.senderId === user.id : false,
       timestamp: m.timestamp.getTime()

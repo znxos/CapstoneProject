@@ -4,8 +4,8 @@ import { getServerSession } from "next-auth/next";
 import crypto from "crypto";
 import { PrismaClient } from "@prisma/client";
 import { generateEventEmbedding, generateUserEmbedding } from "@/lib/ai/events";
-import { authOptions } from "@/lib/auth";
-import { computeCosineSimilarity, generateRationale, generateBatchRationales } from "@/lib/recommendations";
+import { authOptions } from "@/lib/auth-config";
+import { computeCosineSimilarity, generateRationale, generateBatchRationales } from "@/lib/ai-rationales";
 
 const prisma = new PrismaClient();
 
@@ -185,7 +185,13 @@ export async function getEvents(params?: {
 
     const events = await prisma.event.findMany({
       include: {
-        host: { select: { id: true, displayName: true, age: true, yearOfStudy: true, university: true } },
+        host: { 
+          select: { 
+            id: true, displayName: true, age: true, yearOfStudy: true, university: true,
+            isFirstTimeUni: true, bio: true, introvertExtrovertScore: true, socialEnergyLevel: true,
+            interests: true, languages: true, lookingForTags: true, extractedAiTags: true 
+          } 
+        },
         participants: {
           select: { userId: true },
           take: 5
@@ -238,7 +244,7 @@ export async function getEvents(params?: {
         score = Math.round(sim * 100); 
       }
       
-      // Heuristic Weights
+      // Heuristic Weights - Event Category vs User Tags
       const userTagsStr = [...(user.lookingForTags || []), ...(user.extractedAiTags || []), ...(user.interests || [])].join(" ").toLowerCase();
       if (userTagsStr.includes(event.category.toLowerCase())) {
         score += 10;
@@ -249,6 +255,35 @@ export async function getEvents(params?: {
       
       if (user.socialEnergyLevel === "High" && isHighEnergy) score += 5;
       if (user.socialEnergyLevel === "Low" && isLowEnergy) score += 5;
+
+      // --- HOST COMPATIBILITY HEURISTICS ---
+      if (event.hostId !== user.id) {
+        // University Match
+        if (user.university && event.host.university && user.university === event.host.university) score += 5;
+        
+        // Year of Study Match
+        if (user.yearOfStudy && event.host.yearOfStudy && user.yearOfStudy === event.host.yearOfStudy) score += 5;
+        
+        // Age Difference
+        if (user.age && event.host.age && Math.abs(user.age - event.host.age) <= 2) score += 5;
+        
+        // Shared Languages
+        if (user.languages && event.host.languages) {
+          const sharedLangs = user.languages.filter(l => event.host.languages.includes(l));
+          score += sharedLangs.length * 2;
+        }
+        
+        // Shared Interests
+        if (user.interests && event.host.interests) {
+          const sharedInterests = user.interests.filter(i => event.host.interests.includes(i));
+          score += sharedInterests.length * 2;
+        }
+        
+        // Complementary Social Energy
+        if (user.socialEnergyLevel && event.host.socialEnergyLevel && user.socialEnergyLevel === event.host.socialEnergyLevel) {
+          score += 5;
+        }
+      }
       
       score = Math.min(Math.max(score, 10), 99);
       
@@ -270,7 +305,7 @@ export async function getEvents(params?: {
     } else if (tab === "created-events") {
       finalFilteredEvents = finalFilteredEvents.filter(e => e.isHost);
     } else if (tab === "recommended") {
-      finalFilteredEvents = finalFilteredEvents.filter(e => !e.isHost);
+      finalFilteredEvents = finalFilteredEvents.filter(e => !e.isHost && !e.isJoined);
     }
 
     if (category !== "All") {
@@ -285,7 +320,7 @@ export async function getEvents(params?: {
     const apiKey = process.env.GEMINI_API_KEY;
     
     // Hash the user's profile to detect changes
-    const userContext = `Interests: ${user.interests.join(', ')}. Energy: ${user.socialEnergyLevel}. Bio: ${user.bio}`;
+    const userContext = `Age: ${user.age || 'N/A'}. Year of Study: ${user.yearOfStudy || 'N/A'}. University: ${user.university || 'N/A'}. Interests: ${user.interests.join(', ')}. Languages: ${user.languages.join(', ')}. Looking For: ${user.lookingForTags.join(', ')}. Social Energy: ${user.socialEnergyLevel || 'N/A'} (${user.introvertExtrovertScore || 'N/A'}/100). Bio: ${user.bio || 'N/A'}`;
     const userProfileHash = crypto.createHash('sha256').update(userContext).digest('hex');
 
     const rationaleMap = new Map<string, any>();
@@ -306,9 +341,10 @@ export async function getEvents(params?: {
       for (const { event } of paginatedEvents) {
         const cached = rationaleMap.get(event.id);
         if (!cached || cached.userProfileHash !== userProfileHash) {
+          const hostDetails = `Host Age: ${event.host.age || 'N/A'}. Host Year of Study: ${event.host.yearOfStudy || 'N/A'}. Host University: ${event.host.university || 'N/A'}. Host Interests: ${event.host.interests.join(', ')}. Host Languages: ${event.host.languages.join(', ')}. Host Energy: ${event.host.socialEnergyLevel || 'N/A'}. Host Bio: ${event.host.bio || 'N/A'}`;
           cacheMisses.push({
             eventId: event.id,
-            eventContext: `Title: ${event.title}. Category: ${event.category}. Description: ${event.description}`
+            eventContext: `Title: ${event.title}. Category: ${event.category}. Description: ${event.description}. [HOST PROFILE]: ${hostDetails}`
           });
         }
       }

@@ -17,7 +17,7 @@ import {
   LogOut,
   Loader2
 } from "lucide-react";
-import { useGlobalChat } from "../providers/GlobalChatProvider";
+import { useGlobalChat } from "@/app/providers/GlobalChatProvider";
 
 export default function ActivitiesEventsPage() {
   const [activeTab, setActiveTab] = useState<"recommended" | "my-events" | "created-events">("recommended");
@@ -27,6 +27,8 @@ export default function ActivitiesEventsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isUrlLoaded, setIsUrlLoaded] = useState(false);
+  const isFirstRender = React.useRef(true);
   const [processingEventId, setProcessingEventId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   
@@ -37,9 +39,9 @@ export default function ActivitiesEventsPage() {
   const EVENTS_PER_PAGE = 6;
   const totalPages = Math.max(1, Math.ceil(totalCount / EVENTS_PER_PAGE));
 
-  const loadEvents = async () => {
-    setIsLoading(true);
-    const { getEvents } = await import("../actions/events");
+  const loadEvents = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
+    const { getEvents } = await import("@/app/actions/recommender-engine");
     const result = await getEvents({
       page: currentPage,
       limit: EVENTS_PER_PAGE,
@@ -50,28 +52,82 @@ export default function ActivitiesEventsPage() {
       setEvents(result.events);
       setTotalCount(result.totalCount || 0);
     }
-    setIsLoading(false);
+    if (showLoading) setIsLoading(false);
   };
+
+  // Read from URL on mount
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const tab = searchParams.get("tab") as any;
+    const categoryFromUrl = searchParams.get("category");
+    const page = searchParams.get("page");
+
+    if (tab) setActiveTab(tab);
+    if (categoryFromUrl) {
+      const matchedCategory = categories.find(c => c.toLowerCase() === categoryFromUrl.toLowerCase());
+      if (matchedCategory) setActiveCategory(matchedCategory);
+    }
+    if (page) setCurrentPage(Number(page));
+    
+    setIsUrlLoaded(true);
+  }, []);
+
+  // Update URL whenever state changes
+  React.useEffect(() => {
+    if (!isUrlLoaded) return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", activeTab);
+    params.set("category", activeCategory.toLowerCase());
+    params.set("page", currentPage.toString());
+    window.history.replaceState(null, '', `?${params.toString()}`);
+  }, [activeTab, activeCategory, currentPage, isUrlLoaded]);
 
   // Reset to page 1 ONLY when tab or category changes, not on mount
   React.useEffect(() => {
+    if (isFirstRender.current) {
+      if (isUrlLoaded) isFirstRender.current = false;
+      return;
+    }
     setCurrentPage(1);
-  }, [activeTab, activeCategory]);
+  }, [activeTab, activeCategory, isUrlLoaded]);
 
   // Fetch events when page, tab, or category changes
   React.useEffect(() => {
+    if (!isUrlLoaded) return;
     loadEvents();
-  }, [currentPage, activeTab, activeCategory]);
+  }, [currentPage, activeTab, activeCategory, isUrlLoaded]);
 
   const handleJoinLeave = async (id: string, isJoined: boolean) => {
     setProcessingEventId(id);
-    const { joinEvent, leaveEvent } = await import("../actions/events");
-    if (isJoined) {
-      await leaveEvent(id);
-    } else {
-      await joinEvent(id);
+    
+    // Optimistic UI Update
+    setEvents(prev => prev.map(e => 
+      e.id === id ? { 
+        ...e, 
+        isJoined: !isJoined, 
+        joinedCount: e.joinedCount + (isJoined ? -1 : 1) 
+      } : e
+    ));
+
+    const { joinEvent, leaveEvent } = await import("@/app/actions/recommender-engine");
+    try {
+      if (isJoined) {
+        await leaveEvent(id);
+      } else {
+        await joinEvent(id);
+      }
+    } catch (error) {
+      // Revert on failure
+      setEvents(prev => prev.map(e => 
+        e.id === id ? { 
+          ...e, 
+          isJoined: isJoined, 
+          joinedCount: e.joinedCount + (isJoined ? 1 : -1) 
+        } : e
+      ));
+      console.error("Failed to join/leave event:", error);
     }
-    await loadEvents();
+    
     setProcessingEventId(null);
   };
 
@@ -90,7 +146,7 @@ export default function ActivitiesEventsPage() {
     const endDatetime = `${date}T${endTime}:00`;
     
     setFormError("");
-    const { createEvent } = await import("../actions/events");
+    const { createEvent } = await import("@/app/actions/recommender-engine");
     const result = await createEvent({
       title: formData.get("title") as string,
       category: formData.get("category") as string,
@@ -331,6 +387,13 @@ export default function ActivitiesEventsPage() {
                   
                   {isCreatedByMe ? (
                     <div className="flex space-x-2 shrink-0">
+                      <a 
+                        href={`/chat?eventid=${event.id}`}
+                        className="px-3 py-2 rounded-xl text-xs font-bold bg-[#444444] text-white hover:bg-[#333333] shadow-sm transition-colors flex items-center"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                        Chat
+                      </a>
                       <button 
                         onClick={() => handleEditEvent(event.id)}
                         className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-300 text-[#444444] hover:bg-gray-50 shadow-sm transition-colors"
@@ -339,23 +402,34 @@ export default function ActivitiesEventsPage() {
                       </button>
                     </div>
                   ) : (
-                    <button 
-                      onClick={() => handleJoinLeave(event.id, isJoined)}
-                      disabled={(isFull && !isJoined) || processingEventId === event.id}
-                      className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 shadow-sm flex items-center justify-center min-w-[80px] ${
-                        isJoined 
-                          ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          : isFull 
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
-                            : "bg-white border border-gray-300 text-[#444444] hover:border-[#444444] hover:bg-gray-50"
-                      } ${(processingEventId === event.id) ? "opacity-75 cursor-wait" : ""}`}
-                    >
-                      {processingEventId === event.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        isJoined ? "Leave" : isFull ? "Full" : "Join"
+                    <div className="flex space-x-2 shrink-0">
+                      {(isJoined && processingEventId !== event.id) && (
+                        <a 
+                          href={`/chat?eventid=${event.id}`}
+                          className="px-3 py-2 rounded-xl text-xs font-bold bg-[#444444] text-white hover:bg-[#333333] shadow-sm transition-colors flex items-center justify-center animate-in fade-in zoom-in duration-300"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                          Chat
+                        </a>
                       )}
-                    </button>
+                      <button 
+                        onClick={() => handleJoinLeave(event.id, isJoined)}
+                        disabled={(isFull && !isJoined) || processingEventId === event.id}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center min-w-[70px] ${
+                          isJoined 
+                            ? "bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-red-500"
+                            : isFull 
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
+                              : "bg-white border border-gray-300 text-[#444444] hover:border-[#444444] hover:bg-gray-50"
+                        } ${(processingEventId === event.id) ? "opacity-75 cursor-wait" : ""}`}
+                      >
+                        {processingEventId === event.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          isJoined ? "Leave" : isFull ? "Full" : "Join"
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

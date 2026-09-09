@@ -4,7 +4,7 @@ import { useState } from "react";
 import Head from "next/head";
 import { Playfair_Display } from "next/font/google";
 import { useRouter } from "next/navigation";
-import { resetPassword } from "../actions/auth";
+import { resetPassword } from "@/app/actions/auth-engine";
 
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700"] });
 

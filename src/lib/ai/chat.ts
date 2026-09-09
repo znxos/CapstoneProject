@@ -1,3 +1,5 @@
+// responsible for the chat moderation
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const MODERATION_MODELS = [
