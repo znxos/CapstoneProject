@@ -141,8 +141,8 @@ export async function sendMessage(eventId: string, text: string) {
     };
 
     // 5. Broadcast via Pusher (WebSocket Engine)
-    // Don't await pusher to speed up response to the sender!
-    pusherServer.trigger(eventId, 'incoming-message', payload).catch(console.error);
+    // We MUST await this in Vercel so the serverless function doesn't die before sending!
+    await pusherServer.trigger(eventId, 'incoming-message', payload).catch(console.error);
 
     // 6. Post-Moderation (100% Asynchronous)
     moderationQueue.push({
