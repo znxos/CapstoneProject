@@ -1,7 +1,9 @@
 import CredentialsProvider from "next-auth/providers/credentials"
 import prisma from "@/lib/prisma"
-import bcrypt from "bcryptjs"
-import { NextAuthOptions } from "next-auth"
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { NextAuthOptions } from "next-auth";
+import { sendVerificationEmail } from "@/lib/email";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -25,6 +27,21 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!user.isVerified) {
+          const verificationToken = crypto.randomUUID();
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24);
+          await prisma.verificationToken.create({
+            data: {
+              email: user.studentEmail,
+              token: verificationToken,
+              expiresAt,
+            },
+          });
+          try {
+            await sendVerificationEmail(user.studentEmail, verificationToken);
+          } catch (e) {
+            console.error("Failed to send verification email on login:", e);
+          }
           throw new Error("unverified");
         }
 
