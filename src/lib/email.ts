@@ -3,13 +3,10 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendVerificationEmail(email: string, token: string) {
-  const confirmLink = `${process.env.NEXTAUTH_URL}/api/verify?token=${token}`;
+  const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+  const confirmLink = `${baseUrl}/api/verify?token=${token}`;
 
-  // For local development when Resend is sandboxed, log the link to the terminal!
-  console.log("=========================================");
-  console.log("VERIFICATION EMAIL INTERCEPTED");
-  console.log(`Click this link to verify: ${confirmLink}`);
-  console.log("=========================================");
+
 
   try {
     const data = await resend.emails.send({
@@ -40,12 +37,6 @@ export async function sendVerificationEmail(email: string, token: string) {
 
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resetLink = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
-
-  // For local development when Resend is sandboxed, log the link to the terminal!
-  console.log("=========================================");
-  console.log("PASSWORD RESET EMAIL INTERCEPTED");
-  console.log(`Click this link to reset password: ${resetLink}`);
-  console.log("=========================================");
 
   try {
     const data = await resend.emails.send({
