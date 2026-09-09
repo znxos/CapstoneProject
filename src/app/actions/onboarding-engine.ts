@@ -14,6 +14,7 @@ export async function completeUserOnboarding(data: {
   lookingForTags: string[];
   bio: string;
   extractedAiTags: string[];
+  isInternationalStudent: boolean;
 }) {
   try {
     const session = await getServerSession();
@@ -40,6 +41,7 @@ export async function completeUserOnboarding(data: {
         lookingForTags: data.lookingForTags,
         bio: data.bio,
         extractedAiTags: data.extractedAiTags,
+        isInternationalStudent: data.isInternationalStudent,
         isFirstLogin: false,
       },
     });

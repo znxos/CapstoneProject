@@ -21,6 +21,7 @@ model User {
   university                String?
   yearOfStudy               Int?
   isFirstTimeUni            Boolean?
+  isInternationalStudent    Boolean? @default(false)
   isFirstLogin              Boolean  @default(true)
   bio                       String?
   introvertExtrovertScore   Int?

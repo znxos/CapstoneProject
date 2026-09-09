@@ -15,7 +15,9 @@ import {
   MapPin,
   Clock,
   LogOut,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useGlobalChat } from "@/app/providers/GlobalChatProvider";
 
@@ -446,7 +448,7 @@ export default function ActivitiesEventsPage() {
               disabled={currentPage === 1 || isLoading}
               className="w-10 h-10 rounded-full flex items-center justify-center border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-bold"
             >
-              &lt;
+              <ChevronLeft className="w-5 h-5" />
             </button>
             <span className="text-sm font-bold text-gray-600">
               Page {currentPage} of {totalPages}
@@ -456,7 +458,7 @@ export default function ActivitiesEventsPage() {
               disabled={currentPage === totalPages || isLoading}
               className="w-10 h-10 rounded-full flex items-center justify-center border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-bold"
             >
-              &gt;
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         )}

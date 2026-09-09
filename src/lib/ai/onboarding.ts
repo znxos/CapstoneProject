@@ -2,7 +2,19 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export async function extractTagsFromBio(bio: string): Promise<string[]> {
+const ONBOARDING_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-3-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
+  "gemini-3.8-flash"
+];
+
+export async function extractTagsFromBio(bio: string, maxAttempts = 5): Promise<string[]> {
   if (!bio || bio.length < 10) {
     return [];
   }
@@ -13,11 +25,13 @@ export async function extractTagsFromBio(bio: string): Promise<string[]> {
     return [];
   }
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "models/gemini-3.6-flash" });
+  const apiKeys = apiKey.split(',').map(k => k.trim()).filter(Boolean);
+  if (apiKeys.length === 0) {
+    console.warn("No valid GEMINI_API_KEY found.");
+    return [];
+  }
 
-    const prompt = `
+  const prompt = `
 Analyze the following user bio and extract up to 5 succinct hobby or interest tags.
 The tags should be single words or short phrases (max 2 words each).
 Format the output as a valid JSON array of strings in all UPPERCASE.
@@ -30,28 +44,44 @@ Bio:
 "${bio}"
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().trim();
+  let lastError: any;
+  const totalCombinations = ONBOARDING_MODELS.length * apiKeys.length;
+  let attemptIndex = Math.floor(Math.random() * totalCombinations);
 
-    // The model might return conversational filler or markdown. 
-    // We use a regular expression to extract just the JSON array, 
-    // using [\s\S] to ensure we match across multiple lines.
-    let jsonStr = text;
-    const arrayMatch = text.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
-      jsonStr = arrayMatch[0];
-    }
+  for (let i = 0; i < maxAttempts; i++) {
+    const modelIndex = attemptIndex % ONBOARDING_MODELS.length;
+    const keyIndex = Math.floor(attemptIndex / ONBOARDING_MODELS.length) % apiKeys.length;
+    
+    const config = {
+      model: ONBOARDING_MODELS[modelIndex],
+      apiKey: apiKeys[keyIndex]
+    };
 
-    const tags = JSON.parse(jsonStr);
-    
-    if (Array.isArray(tags)) {
-      return tags.slice(0, 5).map(tag => String(tag).toUpperCase());
+    try {
+      const genAI = new GoogleGenerativeAI(config.apiKey);
+      const model = genAI.getGenerativeModel({ model: config.model });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+
+      let jsonStr = text;
+      const arrayMatch = text.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        jsonStr = arrayMatch[0];
+      }
+
+      const tags = JSON.parse(jsonStr);
+      
+      if (Array.isArray(tags)) {
+        return tags.slice(0, 5).map(tag => String(tag).toUpperCase());
+      }
+      return [];
+    } catch (error: any) {
+      console.warn(`[Attempt ${i + 1}/${maxAttempts}] Model ${config.model} with Key ${config.apiKey.substring(0, 5)}... failed: ${error.message || 'Unknown error'}. Trying next...`);
+      lastError = error;
+      attemptIndex = (attemptIndex + 1) % totalCombinations;
     }
-    
-    return [];
-  } catch (error) {
-    console.error("Error extracting tags with Gemini:", error);
-    return [];
   }
+
+  console.error("AI Tag Extraction completely failed after max attempts", lastError);
+  return [];
 }

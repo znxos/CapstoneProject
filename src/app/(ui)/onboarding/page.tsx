@@ -98,6 +98,7 @@ export default function OnboardingPage() {
   const [age, setAge] = useState("");
   const [university, setUniversity] = useState("");
   const [yearOfStudy, setYearOfStudy] = useState("");
+  const [isInternationalStudent, setIsInternationalStudent] = useState(false);
   const [languages, setLanguages] = useState<string[]>([]);
   
   const [introvertScore, setIntrovertScore] = useState(50);
@@ -107,6 +108,7 @@ export default function OnboardingPage() {
   const [bio, setBio] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // AI Extraction State
   const [aiTags, setAiTags] = useState<string[]>([]);
@@ -121,7 +123,40 @@ export default function OnboardingPage() {
         setUserEmail(session.user.email);
       }
     });
+
+    // Load draft from localStorage on mount
+    const saved = localStorage.getItem("onboarding_draft");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.step) setStep(parsed.step);
+        if (parsed.displayName) setDisplayName(parsed.displayName);
+        if (parsed.age) setAge(parsed.age);
+        if (parsed.university) setUniversity(parsed.university);
+        if (parsed.yearOfStudy) setYearOfStudy(parsed.yearOfStudy);
+        if (parsed.isInternationalStudent !== undefined) setIsInternationalStudent(parsed.isInternationalStudent);
+        if (parsed.languages) setLanguages(parsed.languages);
+        if (parsed.introvertScore) setIntrovertScore(parsed.introvertScore);
+        if (parsed.socialEnergyLevel) setSocialEnergyLevel(parsed.socialEnergyLevel);
+        if (parsed.selectedTags) setSelectedTags(parsed.selectedTags);
+        if (parsed.bio) setBio(parsed.bio);
+      } catch(e) {
+        console.error("Failed to parse onboarding draft", e);
+      }
+    }
+    setIsLoaded(true);
   }, []);
+
+  // Save draft to localStorage when fields change
+  useEffect(() => {
+    if (isLoaded) {
+      const draft = {
+        step, displayName, age, university, yearOfStudy, isInternationalStudent, 
+        languages, introvertScore, socialEnergyLevel, selectedTags, bio
+      };
+      localStorage.setItem("onboarding_draft", JSON.stringify(draft));
+    }
+  }, [step, displayName, age, university, yearOfStudy, isInternationalStudent, languages, introvertScore, socialEnergyLevel, selectedTags, bio, isLoaded]);
 
   // AI Bio Extraction Debounced Effect
   useEffect(() => {
@@ -140,7 +175,7 @@ export default function OnboardingPage() {
         console.error("AI Extraction Error", err);
         setIsAnalyzing(false);
       });
-    }, 1000);
+    }, 1200);
 
     return () => clearTimeout(timeoutId);
   }, [bio]);
@@ -233,12 +268,14 @@ export default function OnboardingPage() {
         lookingForTags: selectedTags,
         bio,
         extractedAiTags: aiTags,
+        isInternationalStudent,
       });
 
       if (result.error) {
         setError(result.error);
         setIsSubmitting(false);
       } else {
+        localStorage.removeItem("onboarding_draft");
         window.location.href = "/events";
       }
     } catch (err) {
@@ -368,6 +405,29 @@ export default function OnboardingPage() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <div className="flex-1">
+                    <label className="block text-sm font-bold text-gray-900 mb-0.5">Are you an international student?</label>
+                    <p className="text-xs text-gray-500">This helps us connect you with peers who share similar experiences.</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isInternationalStudent}
+                    onClick={(e) => { e.preventDefault(); setIsInternationalStudent(!isInternationalStudent); }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#444444] focus:ring-offset-2 ${
+                      isInternationalStudent ? 'bg-[#444444]' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        isInternationalStudent ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
 
                 <div>

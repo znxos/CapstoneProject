@@ -188,7 +188,7 @@ export async function getEvents(params?: {
         host: { 
           select: { 
             id: true, displayName: true, age: true, yearOfStudy: true, university: true,
-            isFirstTimeUni: true, bio: true, introvertExtrovertScore: true, socialEnergyLevel: true,
+            isFirstTimeUni: true, isInternationalStudent: true, bio: true, introvertExtrovertScore: true, socialEnergyLevel: true,
             interests: true, languages: true, lookingForTags: true, extractedAiTags: true 
           } 
         },
@@ -258,6 +258,11 @@ export async function getEvents(params?: {
 
       // --- HOST COMPATIBILITY HEURISTICS ---
       if (event.hostId !== user.id) {
+        // International Students
+        if (user.isInternationalStudent && event.host.isInternationalStudent) {
+          score += 15;
+        }
+
         // University Match
         if (user.university && event.host.university && user.university === event.host.university) score += 5;
         
