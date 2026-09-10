@@ -142,7 +142,7 @@ export async function sendMessage(eventId: string, text: string) {
 
     // 5. Broadcast via Pusher (WebSocket Engine)
     // We MUST await this in Vercel so the serverless function doesn't die before sending!
-    await pusherServer.trigger(eventId, 'incoming-message', payload).catch(console.error);
+    await pusherServer.trigger(`private-encrypted-${eventId}`, 'incoming-message', payload).catch(console.error);
 
     // 6. Inline Moderation (Required for Vercel Serverless)
     let finalPayloadText = payload.text;
@@ -158,7 +158,7 @@ export async function sendMessage(eventId: string, text: string) {
             where: { id: message.id },
             data: { isFlagged: true }
           });
-          await pusherServer.trigger(eventId, 'message-flagged', { 
+          await pusherServer.trigger(`private-encrypted-${eventId}`, 'message-flagged', { 
             messageId: message.id,
             text: finalPayloadText
           });

@@ -92,6 +92,7 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
         window.pusherInstance = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
           cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
           forceTLS: true,
+          authEndpoint: '/api/pusher/auth',
         });
       }
       pusherRef.current = window.pusherInstance;
@@ -103,7 +104,7 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
     if (!events || events.length === 0 || !pusherRef.current) return;
 
     const channels = events.map(evt => {
-      const channel = pusherRef.current!.subscribe(evt.id);
+      const channel = pusherRef.current!.subscribe(`private-encrypted-${evt.id}`);
       
       channel.bind("incoming-message", (data: any) => {
         if (data.senderId === currentUserIdRef.current) return;
@@ -136,7 +137,7 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
     return () => {
       channels.forEach((channel, i) => {
         channel.unbind_all();
-        pusherRef.current?.unsubscribe(events[i].id);
+        pusherRef.current?.unsubscribe(`private-encrypted-${events[i].id}`);
       });
     };
   }, [events]);
