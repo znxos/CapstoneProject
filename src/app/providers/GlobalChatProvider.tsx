@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import Pusher from "pusher-js/with-encryption";
+import type Pusher from "pusher-js";
 import { getChatEvents } from "../actions/chat-engine";
 
 declare global {
@@ -40,6 +40,7 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLoadedFromStorage, setIsLoadedFromStorage] = useState(false);
+  const [pusherLoaded, setPusherLoaded] = useState(false);
 
   // Load unread counts from local storage on mount
   useEffect(() => {
@@ -88,20 +89,27 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (!window.pusherInstance) {
-        Pusher.logToConsole = false;
-        window.pusherInstance = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-          forceTLS: true,
-          authEndpoint: '/api/pusher/auth',
+        import("pusher-js/with-encryption").then((PusherModule) => {
+          const PusherClient = PusherModule.default || PusherModule;
+          PusherClient.logToConsole = false;
+          window.pusherInstance = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+            cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+            forceTLS: true,
+            authEndpoint: '/api/pusher/auth',
+          });
+          pusherRef.current = window.pusherInstance;
+          setPusherLoaded(true);
         });
+      } else {
+        pusherRef.current = window.pusherInstance;
+        setPusherLoaded(true);
       }
-      pusherRef.current = window.pusherInstance;
     }
   }, []);
 
   // Global Pusher Subscriptions for all loaded events
   useEffect(() => {
-    if (!events || events.length === 0 || !pusherRef.current) return;
+    if (!events || events.length === 0 || !pusherRef.current || !pusherLoaded) return;
 
     const channels = events.map(evt => {
       const channel = pusherRef.current!.subscribe(`private-encrypted-${evt.id}`);
@@ -140,7 +148,7 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
         pusherRef.current?.unsubscribe(`private-encrypted-${events[i].id}`);
       });
     };
-  }, [events]);
+  }, [events, pusherLoaded]);
 
   const totalUnreadCount = Object.values(unreadCounts).reduce((acc, count) => acc + count, 0);
 
