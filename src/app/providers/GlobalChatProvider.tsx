@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import Pusher from "pusher-js";
+import Pusher from "pusher-js/with-encryption";
 import { getChatEvents } from "../actions/chat-engine";
 
 declare global {
