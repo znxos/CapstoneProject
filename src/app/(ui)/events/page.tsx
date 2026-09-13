@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Head from "next/head";
-import { signOut } from "next-auth/react";
+import { apiFetch } from "@/lib/api";
+import Cookies from "js-cookie";
 import { 
   LayoutDashboard, 
   CalendarRange, 
@@ -43,17 +44,25 @@ export default function ActivitiesEventsPage() {
 
   const loadEvents = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
-    const { getEvents } = await import("@/app/actions/recommender-engine");
-    const result = await getEvents({
-      page: currentPage,
-      limit: EVENTS_PER_PAGE,
-      tab: activeTab,
-      category: activeCategory
-    });
-    if (result && "events" in result && result.events) {
-      setEvents(result.events);
-      setTotalCount(result.totalCount || 0);
+    
+    try {
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: EVENTS_PER_PAGE.toString(),
+        tab: activeTab,
+        category: activeCategory
+      });
+      
+      const res = await apiFetch(`/api/events?${queryParams.toString()}`);
+      if (res.ok) {
+        const result = await res.json();
+        setEvents(result.events || []);
+        setTotalCount(result.totalCount || 0);
+      }
+    } catch (e) {
+      console.error(e);
     }
+    
     if (showLoading) setIsLoading(false);
   };
 
@@ -111,12 +120,11 @@ export default function ActivitiesEventsPage() {
       } : e
     ));
 
-    const { joinEvent, leaveEvent } = await import("@/app/actions/recommender-engine");
     try {
       if (isJoined) {
-        await leaveEvent(id);
+        await apiFetch(`/api/events/${id}/leave`, { method: "POST" });
       } else {
-        await joinEvent(id);
+        await apiFetch(`/api/events/${id}/join`, { method: "POST" });
       }
     } catch (error) {
       // Revert on failure
@@ -148,24 +156,32 @@ export default function ActivitiesEventsPage() {
     const endDatetime = `${date}T${endTime}:00`;
     
     setFormError("");
-    const { createEvent } = await import("@/app/actions/recommender-engine");
-    const result = await createEvent({
-      title: formData.get("title") as string,
-      category: formData.get("category") as string,
-      description: formData.get("description") as string, 
-      startTime: startDatetime,
-      endTime: endDatetime,
-      location: formData.get("location") as string,
-      maxParticipants: parseInt(formData.get("capacity") as string) || 10,
-    });
     
-    if (result && result.error) {
-      setFormError(result.error);
-      return;
+    try {
+      const res = await apiFetch("/api/events", {
+        method: "POST",
+        body: JSON.stringify({
+          title: formData.get("title") as string,
+          category: formData.get("category") as string,
+          description: formData.get("description") as string, 
+          startTime: startDatetime,
+          endTime: endDatetime,
+          location: formData.get("location") as string,
+          maxParticipants: parseInt(formData.get("capacity") as string) || 10,
+        })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        setFormError(data.detail || "Failed to create event");
+        return;
+      }
+      
+      setIsModalOpen(false);
+      await loadEvents();
+    } catch (e) {
+      setFormError("An unexpected error occurred");
     }
-    
-    setIsModalOpen(false);
-    await loadEvents();
   };
 
   return (
@@ -193,7 +209,7 @@ export default function ActivitiesEventsPage() {
             <a href="/profile" className="hover:text-[#444444] transition-colors p-2" title="Profile">
               <User className="w-5 h-5" />
             </a>
-            <button onClick={() => signOut({ callbackUrl: "/login" })} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
+            <button onClick={() => { Cookies.remove('access_token'); window.location.href = '/login'; }} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
@@ -515,8 +531,8 @@ export default function ActivitiesEventsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="category">Category</label>
-                  <select required id="category" name="category" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm bg-white">
-                    <option value="" disabled selected>Select Category</option>
+                  <select required id="category" name="category" defaultValue="" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm bg-white">
+                    <option value="" disabled>Select Category</option>
                     <option value="Tech">Tech</option>
                     <option value="Study">Study</option>
                     <option value="Outdoors">Outdoors</option>

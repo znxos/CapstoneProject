@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
+import { cookies } from 'next/headers';
 
 export default async function Home() {
-  const session = await getServerSession(authOptions);
+  const cookieStore = await cookies();
+  const token = cookieStore.get('access_token');
   
-  if (session) {
+  if (token) {
     redirect('/events');
   } else {
     redirect('/login');

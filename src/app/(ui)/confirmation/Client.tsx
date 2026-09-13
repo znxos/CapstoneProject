@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Head from "next/head";
 import { Lora } from "next/font/google";
-import { resendVerificationEmailAction } from "@/app/actions/auth-engine";
+import { apiFetch } from "@/lib/api";
 
 const lora = Lora({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 
@@ -17,8 +17,10 @@ export default function ConfirmationClient({ email }: { email?: string }) {
 
     setIsResending(true);
     
-    // Call server action to resend the email
-    await resendVerificationEmailAction(email);
+    await apiFetch("/api/auth/resend-verification", {
+      method: "POST",
+      body: JSON.stringify({ email: email })
+    });
     
     setToastVisible(true);
 

@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import Head from "next/head";
-import { signOut } from "next-auth/react";
 import { Merriweather } from "next/font/google";
+import Cookies from "js-cookie";
 import { 
   LayoutDashboard, 
   CalendarRange, 
@@ -150,7 +150,7 @@ export default function ProfilePage() {
             <a href="/profile" className="text-[#444444] border-b-2 border-[#444444] pb-1 px-2 pt-2" title="Profile">
               <User className="w-5 h-5" />
             </a>
-            <button onClick={() => signOut({ callbackUrl: "/login" })} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
+            <button onClick={() => { Cookies.remove('access_token'); window.location.href = '/login'; }} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
               <LogOut className="w-5 h-5" />
             </button>
           </div>

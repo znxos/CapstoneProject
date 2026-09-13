@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import type Pusher from "pusher-js";
-import { getChatEvents } from "../actions/chat-engine";
+import { apiFetch } from "@/lib/api";
+import Cookies from "js-cookie";
 
 declare global {
   interface Window {
@@ -72,9 +73,12 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await getChatEvents();
-        if (res.events && res.events.length > 0) {
-          setEvents(res.events);
+        const res = await apiFetch("/api/chat/events");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.events && data.events.length > 0) {
+            setEvents(data.events);
+          }
         }
       } catch (e) {
         // Not authenticated or error
@@ -92,10 +96,16 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
         import("pusher-js/with-encryption").then((PusherModule) => {
           const PusherClient = PusherModule.default || PusherModule;
           PusherClient.logToConsole = false;
+          const token = Cookies.get('access_token');
           window.pusherInstance = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
             cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
             forceTLS: true,
-            authEndpoint: '/api/pusher/auth',
+            authEndpoint: `${process.env.NEXT_PUBLIC_API_URL}/api/chat/pusher/auth`,
+            auth: {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
           });
           pusherRef.current = window.pusherInstance;
           setPusherLoaded(true);

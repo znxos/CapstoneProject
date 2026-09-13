@@ -4,7 +4,7 @@ import { useState } from "react";
 import Head from "next/head";
 import { Playfair_Display } from "next/font/google";
 import { useRouter } from "next/navigation";
-import { resetPassword } from "@/app/actions/auth-engine";
+import { apiFetch } from "@/lib/api";
 
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700"] });
 
@@ -37,9 +37,13 @@ export default function ResetPasswordClient({ token }: { token: string }) {
     setError(null);
 
     try {
-      const result = await resetPassword(token, password);
-      if (result.error) {
-        setError(result.error);
+      const res = await apiFetch("/api/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ token, new_password: password })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.detail || "Failed to reset password");
       } else {
         router.push("/login?reset=success");
       }

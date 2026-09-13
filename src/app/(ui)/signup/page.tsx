@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Head from "next/head";
-import { signupUser } from "@/app/actions/auth-engine";
+import { apiFetch } from "@/lib/api";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -54,10 +54,14 @@ export default function SignupPage() {
 
     try {
       // 1. Create the user in the database
-      const result = await signupUser(email, password);
+      const res = await apiFetch("/api/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
       
-      if (result.error) {
-        setError(result.error);
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.detail || "Failed to create account");
         setIsLoading(false);
         return;
       }

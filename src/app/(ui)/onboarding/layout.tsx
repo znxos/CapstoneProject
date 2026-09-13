@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import React from "react";
 
 export default async function OnboardingLayout({
@@ -8,19 +7,27 @@ export default async function OnboardingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession();
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token");
 
-  if (!session || !session.user || !session.user.email) {
+  if (!token) {
     redirect("/login");
   }
 
-  const user = await prisma.user.findUnique({
-    where: { studentEmail: session.user.email },
-    select: { isFirstLogin: true },
-  });
-
-  if (user && user.isFirstLogin === false) {
-    redirect("/events");
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  try {
+    const res = await fetch(`${apiUrl}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    });
+    if (!res.ok) {
+      redirect("/login");
+    }
+    const user = await res.json();
+    if (user.isFirstLogin === false) {
+      redirect("/events");
+    }
+  } catch (e) {
+    //
   }
 
   return <>{children}</>;

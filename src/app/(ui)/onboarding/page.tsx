@@ -4,9 +4,8 @@ import React, { useState, useRef, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/navigation";
 import { Search, X, Check, GraduationCap, Zap, Headphones, Coffee, PartyPopper, Target, PenTool, Sparkles, ChevronDown } from "lucide-react";
-import { getSession } from "next-auth/react";
-import { completeUserOnboarding } from "@/app/actions/onboarding-engine";
 import { extractTagsFromBio } from "@/lib/ai/onboarding";
+import { apiFetch } from "@/lib/api";
 
 const AVAILABLE_LANGUAGES = [
   "English", "Afrikaans", "isiZulu", "isiXhosa", "Sepedi", 
@@ -118,9 +117,13 @@ export default function OnboardingPage() {
   const [universityError, setUniversityError] = useState<string | null>(null);
 
   useEffect(() => {
-    getSession().then(session => {
-      if (session?.user?.email) {
-        setUserEmail(session.user.email);
+    apiFetch("/api/auth/me").then(res => {
+      if (res.ok) {
+        res.json().then(data => {
+          if (data.studentEmail) {
+            setUserEmail(data.studentEmail);
+          }
+        });
       }
     });
 
@@ -257,22 +260,25 @@ export default function OnboardingPage() {
     setError(null);
     
     try {
-      const result = await completeUserOnboarding({
-        displayName,
-        age: parseInt(age),
-        university,
-        yearOfStudy: parseInt(yearOfStudy),
-        languages,
-        introvertExtrovertScore: introvertScore,
-        socialEnergyLevel,
-        lookingForTags: selectedTags,
-        bio,
-        extractedAiTags: aiTags,
-        isInternationalStudent,
+      const res = await apiFetch("/api/auth/onboard", {
+        method: "POST",
+        body: JSON.stringify({
+          displayName,
+          age: parseInt(age),
+          university,
+          yearOfStudy: parseInt(yearOfStudy),
+          languages,
+          introvertExtrovertScore: introvertScore,
+          socialEnergyLevel,
+          lookingForTags: selectedTags,
+          bio,
+          extractedAiTags: aiTags,
+          isInternationalStudent,
+        })
       });
 
-      if (result.error) {
-        setError(result.error);
+      if (!res.ok) {
+        setError("Failed to save profile.");
         setIsSubmitting(false);
       } else {
         localStorage.removeItem("onboarding_draft");

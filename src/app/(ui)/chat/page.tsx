@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Send, Users, Search, MoreVertical, Paperclip, Smile, LayoutDashboard, CalendarRange, User, LogOut, Loader2, AlertCircle, MessageSquare } from "lucide-react";
 import { Merriweather } from "next/font/google";
-import { signOut } from "next-auth/react";
-import { getMessages, sendMessage } from "@/app/actions/chat-engine";
+import { apiFetch } from "@/lib/api";
+import Cookies from "js-cookie";
 import { useGlobalChat } from "@/app/providers/GlobalChatProvider";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
@@ -118,11 +118,18 @@ export default function ChatPage() {
 
     const fetchMessages = async () => {
       setIsMessagesLoading(true);
-      const res = await getMessages(activeEvent.id);
-      if (isMounted && res.messages) {
-        setMessagesByEvent(prev => ({ ...prev, [activeEvent.id]: res.messages }));
-        setCurrentUserId(res.currentUserId || null);
-        setIsMessagesLoading(false);
+      try {
+        const res = await apiFetch(`/api/chat/events/${activeEvent.id}/messages`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.messages) {
+            setMessagesByEvent(prev => ({ ...prev, [activeEvent.id]: data.messages }));
+            setCurrentUserId(data.currentUserId || null);
+          }
+        }
+      } catch (e) {
+      } finally {
+        if (isMounted) setIsMessagesLoading(false);
       }
     };
     fetchMessages();
@@ -157,24 +164,38 @@ export default function ChatPage() {
       return { ...prev, [activeEvent.id]: [...existing, optimisticMessage] };
     });
 
-    const res = await sendMessage(activeEvent.id, textToSend);
-    
-    if (res.error) {
-      setErrorMsg(res.error);
-      // Give them the text back ONLY if they haven't started typing a new message
-      setInputText((prev) => prev.length > 0 ? prev : textToSend); 
+    try {
+      const res = await apiFetch(`/api/chat/events/${activeEvent.id}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ text: textToSend })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        setErrorMsg(data.detail || "Failed to send message");
+        // Give them the text back ONLY if they haven't started typing a new message
+        setInputText((prev) => prev.length > 0 ? prev : textToSend); 
+        setMessagesByEvent((prev) => {
+          if (!prev[activeEvent.id]) return prev;
+          return { ...prev, [activeEvent.id]: prev[activeEvent.id].filter(m => m.id !== tempId) };
+        });
+      } else {
+        const data = await res.json();
+        // Replace temp ID with the real DB ID
+        setMessagesByEvent((prev) => {
+          if (!prev[activeEvent.id]) return prev;
+          return {
+            ...prev,
+            [activeEvent.id]: prev[activeEvent.id].map(m => m.id === tempId ? { ...data.message, isMe: true } : m)
+          };
+        });
+      }
+    } catch (e) {
+      setErrorMsg("An unexpected error occurred.");
+      setInputText((prev) => prev.length > 0 ? prev : textToSend);
       setMessagesByEvent((prev) => {
         if (!prev[activeEvent.id]) return prev;
         return { ...prev, [activeEvent.id]: prev[activeEvent.id].filter(m => m.id !== tempId) };
-      });
-    } else if (res.message) {
-      // Replace temp ID with the real DB ID
-      setMessagesByEvent((prev) => {
-        if (!prev[activeEvent.id]) return prev;
-        return {
-          ...prev,
-          [activeEvent.id]: prev[activeEvent.id].map(m => m.id === tempId ? { ...res.message, isMe: true } : m)
-        };
       });
     }
   };
@@ -263,7 +284,7 @@ export default function ChatPage() {
             <a href="/profile" className="hover:text-[#444444] transition-colors p-2" title="Profile">
               <User className="w-5 h-5" />
             </a>
-            <button onClick={() => signOut({ callbackUrl: "/login" })} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
+            <button onClick={() => { Cookies.remove('access_token'); window.location.href = '/login'; }} className="hover:text-red-500 transition-colors p-2" title="Sign Out">
               <LogOut className="w-5 h-5" />
             </button>
           </div>

@@ -3,7 +3,8 @@
 import { useState, Suspense } from "react";
 import Head from "next/head";
 import { Merriweather } from "next/font/google";
-import { signIn } from "next-auth/react";
+import { apiFetch } from "@/lib/api";
+import Cookies from "js-cookie";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["700", "900"] });
@@ -27,24 +28,30 @@ function LoginContent() {
     setSuccess(null);
 
     try {
-      const res = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      const form = new FormData();
+      form.append("username", email);
+      form.append("password", password);
+      
+      const res = await apiFetch("/api/auth/login", {
+        method: "POST",
+        body: form
       });
 
-      if (res?.error) {
-        if (res.error === "unverified" || res.error === "expired_verification") {
-          router.push(`/confirmation?email=${encodeURIComponent(email)}`);
-        } else {
+      if (!res.ok) {
+        if (res.status === 401) {
           setError("Invalid email or password");
-          setIsLoading(false);
+        } else {
+          setError("An error occurred during login.");
         }
+        setIsLoading(false);
       } else {
+        const data = await res.json();
+        Cookies.set('access_token', data.access_token, { expires: 7 }); // expires in 7 days
         router.push("/events");
         router.refresh();
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError("An unexpected error occurred.");
       setIsLoading(false);
     }
