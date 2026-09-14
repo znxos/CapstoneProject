@@ -1,11 +1,17 @@
 import ForgotPasswordConfirmationClient from "./Client";
+import { redirect } from "next/navigation";
 
-export default function ForgotPasswordConfirmationPage({
+export default async function ForgotPasswordConfirmationPage({
   searchParams,
 }: {
-  searchParams: { email?: string };
+  searchParams: Promise<{ email?: string }>;
 }) {
-  const email = searchParams.email || "";
+  const resolvedParams = await searchParams;
+  const email = resolvedParams.email;
+
+  if (!email || typeof email !== 'string') {
+    redirect("/login");
+  }
 
   return <ForgotPasswordConfirmationClient email={email} />;
 }

@@ -292,6 +292,7 @@ export default function OnboardingPage() {
 
   const isStep1Valid = displayName.trim() !== "" && age !== "" && university !== "" && yearOfStudy !== "" && languages.length > 0;
   const isStep2Valid = socialEnergyLevel !== "";
+  const isStep3Valid = selectedTags.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans flex flex-col items-center justify-center p-4 sm:p-6">
@@ -697,9 +698,9 @@ export default function OnboardingPage() {
           {step < totalSteps ? (
             <button 
               onClick={nextStep}
-              disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)}
+              disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid) || (step === 3 && !isStep3Valid)}
               className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center ${
-                (step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)
+                (step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid) || (step === 3 && !isStep3Valid)
                   ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                   : "text-white bg-[#444444] hover:bg-[#333333]"
               }`}
@@ -710,9 +711,9 @@ export default function OnboardingPage() {
           ) : (
             <button 
               onClick={completeOnboarding}
-              disabled={bio.length < 10 || isSubmitting}
+              disabled={bio.length < 10 || isSubmitting || isAnalyzing}
               className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center justify-center ${
-                bio.length < 10 || isSubmitting
+                bio.length < 10 || isSubmitting || isAnalyzing
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                 : "text-white bg-green-600 hover:bg-green-700"
               }`}

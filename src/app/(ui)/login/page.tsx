@@ -47,8 +47,7 @@ function LoginContent() {
       } else {
         const data = await res.json();
         Cookies.set('access_token', data.access_token, { expires: 7 }); // expires in 7 days
-        router.push("/events");
-        router.refresh();
+        window.location.href = "/events";
       }
     } catch (err) {
       console.error("Login error:", err);

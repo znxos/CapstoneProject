@@ -19,19 +19,26 @@ export default async function ProfileLayout({
   // For now we'll just allow it since the backend will enforce onboarding if we add it,
   // or we can just fetch it here.
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  let shouldRedirect = "";
   try {
     const res = await fetch(`${apiUrl}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${token.value}` }
+      headers: { Authorization: `Bearer ${token.value}` },
+      cache: 'no-store'
     });
     if (!res.ok) {
-      redirect("/login");
-    }
-    const user = await res.json();
-    if (user.isFirstLogin) {
-      redirect("/onboarding");
+      shouldRedirect = "/login";
+    } else {
+      const user = await res.json();
+      if (user.isFirstLogin) {
+        shouldRedirect = "/onboarding";
+      }
     }
   } catch (e) {
     // If backend is down, we might want to just proceed or error
+  }
+
+  if (shouldRedirect) {
+    redirect(shouldRedirect);
   }
 
   return <>{children}</>;

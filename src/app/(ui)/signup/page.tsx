@@ -56,12 +56,18 @@ export default function SignupPage() {
       // 1. Create the user in the database
       const res = await apiFetch("/api/auth/signup", {
         method: "POST",
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ studentEmail: email, password })
       });
       
       if (!res.ok) {
         const data = await res.json();
-        setError(data.detail || "Failed to create account");
+        let errorMessage = "Failed to create account";
+        if (Array.isArray(data.detail)) {
+          errorMessage = data.detail[0].msg;
+        } else if (typeof data.detail === 'string') {
+          errorMessage = data.detail;
+        }
+        setError(errorMessage);
         setIsLoading(false);
         return;
       }

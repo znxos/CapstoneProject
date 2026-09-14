@@ -2,6 +2,8 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+import { eventsLimiter } from "../aiLimiter";
+
 const ONBOARDING_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
@@ -49,6 +51,11 @@ Bio:
   let attemptIndex = Math.floor(Math.random() * totalCombinations);
 
   for (let i = 0; i < maxAttempts; i++) {
+    if (!eventsLimiter.canRequest()) {
+      console.warn("Events limiter rate limited locally in frontend (tag extraction).");
+      break;
+    }
+    
     const modelIndex = attemptIndex % ONBOARDING_MODELS.length;
     const keyIndex = Math.floor(attemptIndex / ONBOARDING_MODELS.length) % apiKeys.length;
     

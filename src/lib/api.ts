@@ -25,7 +25,8 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     if (response.status === 401 && typeof window !== 'undefined') {
       // Unauthorized: clear token and redirect to login
       Cookies.remove('access_token');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/signup' && window.location.pathname !== '/forgot-password') {
+      const publicPaths = ['/login', '/signup', '/forgot-password', '/reset-password', '/forgot-password-confirmation', '/confirmation', '/reset-password-confirmation'];
+      if (!publicPaths.includes(window.location.pathname)) {
         window.location.href = '/login';
       }
     }

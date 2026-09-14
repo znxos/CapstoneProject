@@ -45,7 +45,7 @@ export default function ResetPasswordClient({ token }: { token: string }) {
         const data = await res.json();
         setError(data.detail || "Failed to reset password");
       } else {
-        router.push("/login?reset=success");
+        router.push("/reset-password-confirmation");
       }
     } catch (err) {
       setError("An unexpected error occurred");
