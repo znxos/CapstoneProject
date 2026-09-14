@@ -100,7 +100,7 @@ export const GlobalChatProvider = ({ children }: { children: React.ReactNode }) 
           window.pusherInstance = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
             cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
             forceTLS: true,
-            authEndpoint: `${process.env.NEXT_PUBLIC_API_URL}/api/chat/pusher/auth`,
+            authEndpoint: `/api/chat/pusher/auth`,
             auth: {
               headers: {
                 Authorization: `Bearer ${token}`

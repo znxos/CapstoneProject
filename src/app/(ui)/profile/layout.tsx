@@ -18,7 +18,7 @@ export default async function ProfileLayout({
   // But we can just rely on the API to return 403 or redirect
   // For now we'll just allow it since the backend will enforce onboarding if we add it,
   // or we can just fetch it here.
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const apiUrl = process.env.API_URL || 'http://localhost:8000';
   let shouldRedirect = "";
   try {
     const res = await fetch(`${apiUrl}/api/auth/me`, {
