@@ -1,20 +1,11 @@
 "use server";
 import { apiFetch } from "@/lib/api";
-import { headers } from "next/headers";
 
 export async function requestPasswordReset(email: string) {
   console.log("--> [auth-engine] requestPasswordReset called with email:", email);
   try {
-    const headersList = headers();
-    const host = headersList.get("host") || "";
-    const protocol = headersList.get("x-forwarded-proto") || "https";
-    const origin = process.env.NEXTAUTH_URL || headersList.get("origin") || (host ? `${protocol}://${host}` : "http://localhost:3000");
-
     const res = await apiFetch("/api/auth/reset-password-request", {
       method: "POST",
-      headers: {
-        "x-frontend-url": origin,
-      },
       body: JSON.stringify({ email })
     });
     console.log("--> [auth-engine] response status:", res.status);
