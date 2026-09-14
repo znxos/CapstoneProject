@@ -13,7 +13,7 @@ export async function requestPasswordReset(email: string) {
     const res = await apiFetch("/api/auth/reset-password-request", {
       method: "POST",
       headers: {
-        "origin": origin,
+        "x-frontend-url": origin,
       },
       body: JSON.stringify({ email })
     });
