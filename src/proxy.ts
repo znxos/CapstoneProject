@@ -19,11 +19,23 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
   
+  // Inject Server-to-Server API Key for backend requests
+  if (pathname.startsWith('/api/')) {
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('X-API-Key', process.env.API_SECRET_KEY || '');
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      }
+    });
+  }
+  
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
+    "/api/:path*",
     "/onboarding/:path*",
     "/events/:path*",
     "/profile/:path*",
