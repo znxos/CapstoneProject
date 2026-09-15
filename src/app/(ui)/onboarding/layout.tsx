@@ -18,7 +18,10 @@ export default async function OnboardingLayout({
   let shouldRedirect = "";
   try {
     const res = await fetch(`${apiUrl}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${token.value}` },
+      headers: { 
+        Authorization: `Bearer ${token.value}`,
+        'X-API-Key': process.env.API_SECRET_KEY || ''
+      },
       cache: 'no-store'
     });
     if (!res.ok) {
