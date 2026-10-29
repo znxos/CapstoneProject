@@ -16,6 +16,17 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
+  // Inject Server-to-Server API Key when running on the server
+  if (typeof window === 'undefined') {
+    if (process.env.API_SECRET_KEY && !headers.has('X-API-Key')) {
+      headers.set('X-API-Key', process.env.API_SECRET_KEY);
+    }
+    if (!headers.has('Origin')) {
+      const origin = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+      headers.set('Origin', origin);
+    }
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
