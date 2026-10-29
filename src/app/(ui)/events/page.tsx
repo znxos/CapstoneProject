@@ -34,6 +34,16 @@ export default function ActivitiesEventsPage() {
   const isFirstRender = React.useRef(true);
   const [processingEventId, setProcessingEventId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const [formStartDate, setFormStartDate] = useState("");
+  const [formEndDate, setFormEndDate] = useState("");
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const openCreateModal = () => {
+    setFormStartDate("");
+    setFormEndDate("");
+    setFormError("");
+    setIsModalOpen(true);
+  };
   
   const { totalUnreadCount } = useGlobalChat();
 
@@ -148,13 +158,33 @@ export default function ActivitiesEventsPage() {
   const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const date = formData.get("date") as string;
+    const startDate = (formData.get("startDate") as string) || formStartDate;
     const startTime = formData.get("startTime") as string;
+    const endDate = (formData.get("endDate") as string) || formEndDate;
     const endTime = formData.get("endTime") as string;
     
-    const startDatetime = `${date}T${startTime}:00`;
-    const endDatetime = `${date}T${endTime}:00`;
-    
+    if (!startDate || !startTime || !endDate || !endTime) {
+      setFormError("Start date, start time, end date, and end time are all required.");
+      return;
+    }
+
+    const startDatetime = `${startDate}T${startTime}:00`;
+    const endDatetime = `${endDate}T${endTime}:00`;
+
+    const startObj = new Date(startDatetime);
+    const endObj = new Date(endDatetime);
+    const now = new Date();
+
+    if (endObj <= startObj) {
+      setFormError("Event end date and time must be after the start date and time.");
+      return;
+    }
+
+    if (endObj <= now) {
+      setFormError("Event end date and time cannot be in the past.");
+      return;
+    }
+
     setFormError("");
     
     try {
@@ -178,6 +208,8 @@ export default function ActivitiesEventsPage() {
       }
       
       setIsModalOpen(false);
+      setFormStartDate("");
+      setFormEndDate("");
       await loadEvents();
     } catch (e) {
       setFormError("An unexpected error occurred");
@@ -225,7 +257,7 @@ export default function ActivitiesEventsPage() {
             <p className="text-gray-500 text-sm">Discover and join events matched to your interests and social energy.</p>
           </div>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={openCreateModal}
             className="mt-4 md:mt-0 bg-[#444444] hover:bg-[#333333] text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-colors flex items-center space-x-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
@@ -281,16 +313,27 @@ export default function ActivitiesEventsPage() {
             Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col animate-pulse">
                 <div className="h-28 w-full bg-gray-200/60 border-b border-gray-100 p-4"></div>
-                <div className="px-6 pt-5 pb-2 flex-grow space-y-3">
-                  <div className="h-6 bg-gray-200/60 rounded-md w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200/60 rounded-md w-full"></div>
-                  <div className="h-4 bg-gray-200/60 rounded-md w-5/6 mb-4"></div>
+                <div className="px-6 pt-5 pb-2 flex-grow flex flex-col">
+                  <div className="h-14 mb-2 flex flex-col justify-center space-y-1.5">
+                    <div className="h-5 bg-gray-200/60 rounded-md w-3/4"></div>
+                    <div className="h-5 bg-gray-200/60 rounded-md w-1/2"></div>
+                  </div>
+                  <div className="h-[4.25rem] mb-3 flex flex-col justify-center space-y-1.5">
+                    <div className="h-3.5 bg-gray-200/60 rounded-md w-full"></div>
+                    <div className="h-3.5 bg-gray-200/60 rounded-md w-11/12"></div>
+                    <div className="h-3.5 bg-gray-200/60 rounded-md w-4/6"></div>
+                  </div>
                   
-                  <div className="h-4 bg-gray-200/60 rounded-md w-1/2"></div>
-                  <div className="h-4 bg-gray-200/60 rounded-md w-2/5 mb-3"></div>
+                  <div className="h-5 mb-2 flex items-center">
+                    <div className="h-4 bg-gray-200/60 rounded-md w-1/2"></div>
+                  </div>
+                  <div className="h-10 mb-4 flex items-center space-y-1 flex-col justify-center">
+                    <div className="h-3.5 bg-gray-200/60 rounded-md w-full"></div>
+                    <div className="h-3.5 bg-gray-200/60 rounded-md w-3/4"></div>
+                  </div>
                   
-                  <div className="w-full h-20 my-4 rounded-xl bg-gray-200/60 border border-gray-100"></div>
-                  <div className="bg-gray-100/60 rounded-xl p-3 mb-2 h-16 w-full"></div>
+                  <div className="w-full h-20 mb-4 rounded-xl bg-gray-200/60 border border-gray-100 shrink-0"></div>
+                  <div className="bg-gray-100/60 rounded-xl p-3.5 h-[128px] w-full mb-2 shrink-0"></div>
                 </div>
                 <div className="px-6 py-5 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between mt-auto">
                   <div className="h-4 bg-gray-200/60 rounded-md w-1/3"></div>
@@ -306,149 +349,182 @@ export default function ActivitiesEventsPage() {
             const isHighMatch = event.similarity >= 90;
             
             return (
-              <div key={event.id} className="group bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300">
-                
-                {/* Rich Visual Header */}
-                <div className="h-28 w-full bg-[rgba(249,250,251,0.5)] border-b border-gray-100 relative p-4 flex justify-between items-start">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-gray-900 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-                    {event.category}
-                  </span>
-                  
-                  {!isCreatedByMe && (
-                    <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-black shadow-sm transition-all bg-white/90 backdrop-blur-sm text-gray-500 border border-gray-200">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{event.similarity}% Match</span>
-                    </div>
-                  )}
-                  {isCreatedByMe && (
-                     <div className="flex items-center space-x-1 text-blue-700 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-black shadow-sm">
-                       <span>Organizer</span>
-                     </div>
-                  )}
+              <div key={event.id} className="relative group">
+                {/* Fixed Grid Placeholder: Keeps all rows and adjacent cards rock-solid and aligned */}
+                <div className="invisible bg-white rounded-3xl border border-transparent p-0 flex flex-col pointer-events-none select-none" aria-hidden="true">
+                  <div className="h-28 w-full"></div>
+                  <div className="px-6 pt-5 pb-2 flex-grow flex flex-col">
+                    <div className="h-14 mb-2"></div>
+                    <div className="h-[4.25rem] mb-3"></div>
+                    <div className="h-5 mb-2"></div>
+                    <div className="h-10 mb-4"></div>
+                    <div className="h-20 mb-4"></div>
+                    <div className="h-[128px] mb-2"></div>
+                  </div>
+                  <div className="px-6 py-5">
+                    <div className="h-9"></div>
+                  </div>
                 </div>
 
-                {/* Card Body: Info */}
-                <div className="px-6 pt-5 pb-2 flex-grow">
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 leading-tight group-hover:text-[#444444] transition-colors">{event.title}</h3>
+                {/* Floating Interactive Card: Normal aligned state by default; seamlessly expands downward on hover if truncated */}
+                <div className="absolute top-0 left-0 w-full min-h-full bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:-translate-y-1.5 hover:shadow-2xl hover:border-gray-200 transition-all duration-300 z-10 hover:z-30">
                   
-                  {event.description && (
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {event.description}
-                    </p>
-                  )}
-
-                  <div className="flex items-center text-sm text-gray-500 mb-2 font-medium">
-                    <Clock className="w-4 h-4 mr-2.5 text-gray-400 shrink-0" />
-                    {event.datetime}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-500 mb-3 font-medium">
-                    <MapPin className="w-4 h-4 mr-2.5 text-gray-400 shrink-0" />
-                    {event.location}
-                  </div>
-                  
-                  {/* Mini Map Placeholder */}
-                  <div className="w-full h-20 mb-5 rounded-xl bg-[#eef0f2] flex items-center justify-center border border-gray-200 relative overflow-hidden group/map cursor-pointer">
-                    {/* Fake roads styling */}
-                    <div className="absolute w-full h-2 bg-white top-1/2 -translate-y-1/2 rotate-12"></div>
-                    <div className="absolute w-2 h-full bg-white left-1/3 -translate-x-1/2 -rotate-12"></div>
-                    <div className="absolute w-full h-2 bg-white top-1/4 -translate-y-1/2 -rotate-6"></div>
-                    
-                    {/* Location Pin */}
-                    <div className="relative z-10 flex flex-col items-center group-hover/map:-translate-y-1 transition-transform duration-300">
-                       <MapPin className="w-6 h-6 text-red-500 fill-red-100 drop-shadow-sm" />
-                       <div className="w-2.5 h-1 bg-gray-400/50 rounded-full blur-[1px] mt-0.5"></div>
-                    </div>
-                    
-                    {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px] opacity-0 group-hover/map:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-gray-800 uppercase tracking-wider bg-white px-3 py-1.5 rounded-full shadow-sm">View Map</span>
-                    </div>
-                  </div>
-
-                  {/* Rationale */}
-                  <div className="bg-gray-50/80 rounded-xl p-3 mb-4 text-[13px] text-gray-600 leading-relaxed flex items-start border border-gray-100">
-                    <span className="mr-2 mt-0.5 shrink-0" aria-hidden="true">
-                      {isCreatedByMe ? <PenTool className="w-4 h-4 text-[#444444]" /> : <Sparkles className="w-4 h-4 text-[#444444]" />}
+                  {/* Rich Visual Header */}
+                  <div className="h-28 w-full bg-[rgba(249,250,251,0.5)] border-b border-gray-100 relative p-4 flex justify-between items-start shrink-0">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-900 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
+                      {event.category}
                     </span>
-                    <p>{event.rationale}</p>
+                    
+                    {!isCreatedByMe && (
+                      <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-black shadow-sm transition-all bg-white/90 backdrop-blur-sm text-gray-500 border border-gray-200">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{event.similarity}% Match</span>
+                      </div>
+                    )}
+                    {isCreatedByMe && (
+                       <div className="flex items-center space-x-1 text-blue-700 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-black shadow-sm">
+                         <span>Organizer</span>
+                       </div>
+                    )}
+                    {event.isEnded && (
+                      <div className="flex items-center space-x-1 text-gray-600 bg-gray-200/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-bold shadow-sm">
+                        <span>Ended</span>
+                      </div>
+                    )}
                   </div>
-                </div>
 
-                {/* Card Footer: Capacity, Social Proof & CTA */}
-                <div className="px-6 py-5 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between mt-auto">
-                  
-                  <div className="flex flex-col mr-2">
-                    <div className="flex items-center mb-1.5">
-                      <span className="text-[11px] uppercase tracking-wider font-bold text-gray-500 mr-3">
-                        {event.joinedCount}/{event.capacity}
+                  {/* Card Body: Info */}
+                  <div className="px-6 pt-5 pb-2 flex-grow flex flex-col">
+                    {/* Title: Exactly 2 lines aligned; unclamps on card hover */}
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 leading-tight group-hover:text-[#444444] transition-colors line-clamp-2 min-h-[3.5rem] group-hover:line-clamp-none group-hover:h-auto" title={event.title}>
+                      {event.title}
+                    </h3>
+                    
+                    {/* Description: 3 lines aligned; unclamps on card hover */}
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-3 min-h-[4.25rem] group-hover:line-clamp-none group-hover:h-auto leading-relaxed transition-all">
+                      {event.description || "\u00A0"}
+                    </p>
+
+                    {/* Datetime: 1 line (h-5) */}
+                    <div className="flex items-center text-sm text-gray-500 mb-2 font-medium h-5 shrink-0">
+                      <Clock className="w-4 h-4 mr-2.5 text-gray-400 shrink-0" />
+                      <span className="truncate">{event.datetime}</span>
+                    </div>
+
+                    {/* Location: 2 lines aligned; unclamps on card hover */}
+                    <div className="flex items-start text-sm text-gray-500 mb-4 font-medium min-h-[2.5rem] group-hover:h-auto">
+                      <MapPin className="w-4 h-4 mr-2.5 mt-0.5 text-gray-400 shrink-0" />
+                      <span className="line-clamp-2 group-hover:line-clamp-none leading-snug transition-all" title={event.location}>{event.location}</span>
+                    </div>
+                    
+                    {/* Mini Map Placeholder: Fixed 80px (h-20) */}
+                    <div className="w-full h-20 mb-4 rounded-xl bg-[#eef0f2] flex items-center justify-center border border-gray-200 relative overflow-hidden group/map cursor-pointer shrink-0">
+                      {/* Fake roads styling */}
+                      <div className="absolute w-full h-2 bg-white top-1/2 -translate-y-1/2 rotate-12"></div>
+                      <div className="absolute w-2 h-full bg-white left-1/3 -translate-x-1/2 -rotate-12"></div>
+                      <div className="absolute w-full h-2 bg-white top-1/4 -translate-y-1/2 -rotate-6"></div>
+                      
+                      {/* Location Pin */}
+                      <div className="relative z-10 flex flex-col items-center group-hover/map:-translate-y-1 transition-transform duration-300">
+                         <MapPin className="w-6 h-6 text-red-500 fill-red-100 drop-shadow-sm" />
+                         <div className="w-2.5 h-1 bg-gray-400/50 rounded-full blur-[1px] mt-0.5"></div>
+                      </div>
+                      
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px] opacity-0 group-hover/map:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-[10px] font-bold text-gray-800 uppercase tracking-wider bg-white px-3 py-1.5 rounded-full shadow-sm">View Map</span>
+                      </div>
+                    </div>
+
+                    {/* Rationale: 128px / 5 lines aligned; unclamps on card hover */}
+                    <div className="bg-gray-50/80 rounded-xl p-3.5 mb-2 text-gray-600 flex items-start border border-gray-100 min-h-[128px] group-hover:h-auto group-hover:max-h-none transition-all shrink-0">
+                      <span className="mr-2.5 mt-0.5 shrink-0" aria-hidden="true">
+                        {isCreatedByMe ? <PenTool className="w-4 h-4 text-[#444444]" /> : <Sparkles className="w-4 h-4 text-[#444444]" />}
                       </span>
-                      {/* Avatar Social Proof Cluster */}
-                      <div className="flex -space-x-2">
-                        {event.participants.slice(0, 3).map((img: string, idx: number) => (
-                          <img key={idx} src={img} className="w-6 h-6 rounded-full border-2 border-white shadow-sm object-cover" alt="Participant" />
-                        ))}
-                        {event.participants.length > 3 && (
-                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 z-10">
-                            +{event.participants.length - 3}
-                          </div>
-                        )}
+                      <p className="line-clamp-5 group-hover:line-clamp-none text-gray-600 text-[12.5px] leading-relaxed transition-all" title={event.rationale}>
+                        {event.rationale}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card Footer: Capacity, Social Proof & CTA */}
+                  <div className="px-6 py-5 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between mt-auto shrink-0">
+                    
+                    <div className="flex flex-col mr-2">
+                      <div className="flex items-center mb-1.5">
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-gray-500 mr-3">
+                          {event.joinedCount}/{event.capacity}
+                        </span>
+                        {/* Avatar Social Proof Cluster */}
+                        <div className="flex -space-x-2">
+                          {event.participants.slice(0, 3).map((img: string, idx: number) => (
+                            <img key={idx} src={img} className="w-6 h-6 rounded-full border-2 border-white shadow-sm object-cover" alt="Participant" />
+                          ))}
+                          {event.participants.length > 3 && (
+                            <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 z-10">
+                              +{event.participants.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-300 ${isFull ? 'bg-red-400' : 'bg-[#444444]'}`} 
+                          style={{ width: `${(event.joinedCount / event.capacity) * 100}%` }}
+                        ></div>
                       </div>
                     </div>
                     
-                    <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-300 ${isFull ? 'bg-red-400' : 'bg-[#444444]'}`} 
-                        style={{ width: `${(event.joinedCount / event.capacity) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  
-                  {isCreatedByMe ? (
-                    <div className="flex space-x-2 shrink-0">
-                      <a 
-                        href={`/chat?eventid=${event.id}`}
-                        className="px-3 py-2 rounded-xl text-xs font-bold bg-[#444444] text-white hover:bg-[#333333] shadow-sm transition-colors flex items-center"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 mr-1" />
-                        Chat
-                      </a>
-                      <button 
-                        onClick={() => handleEditEvent(event.id)}
-                        className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-300 text-[#444444] hover:bg-gray-50 shadow-sm transition-colors"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex space-x-2 shrink-0">
-                      {(isJoined && processingEventId !== event.id) && (
+                    {isCreatedByMe ? (
+                      <div className="flex space-x-2 shrink-0">
                         <a 
                           href={`/chat?eventid=${event.id}`}
-                          className="px-3 py-2 rounded-xl text-xs font-bold bg-[#444444] text-white hover:bg-[#333333] shadow-sm transition-colors flex items-center justify-center animate-in fade-in zoom-in duration-300"
+                          className="px-3 py-2 rounded-xl text-xs font-bold bg-[#444444] text-white hover:bg-[#333333] shadow-sm transition-colors flex items-center"
                         >
                           <MessageSquare className="w-3.5 h-3.5 mr-1" />
                           Chat
                         </a>
-                      )}
-                      <button 
-                        onClick={() => handleJoinLeave(event.id, isJoined)}
-                        disabled={(isFull && !isJoined) || processingEventId === event.id}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center min-w-[70px] ${
-                          isJoined 
-                            ? "bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-red-500"
-                            : isFull 
-                              ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
-                              : "bg-white border border-gray-300 text-[#444444] hover:border-[#444444] hover:bg-gray-50"
-                        } ${(processingEventId === event.id) ? "opacity-75 cursor-wait" : ""}`}
-                      >
-                        {processingEventId === event.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          isJoined ? "Leave" : isFull ? "Full" : "Join"
+                        <button 
+                          onClick={() => handleEditEvent(event.id)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-300 text-[#444444] hover:bg-gray-50 shadow-sm transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex space-x-2 shrink-0">
+                        {(isJoined && processingEventId !== event.id) && (
+                          <a 
+                            href={`/chat?eventid=${event.id}`}
+                            className="px-3 py-2 rounded-xl text-xs font-bold bg-[#444444] text-white hover:bg-[#333333] shadow-sm transition-colors flex items-center justify-center animate-in fade-in zoom-in duration-300"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                            Chat
+                          </a>
                         )}
-                      </button>
-                    </div>
-                  )}
+                        <button 
+                          onClick={() => handleJoinLeave(event.id, isJoined)}
+                          disabled={(isFull && !isJoined) || processingEventId === event.id || event.isEnded}
+                          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center min-w-[70px] ${
+                            event.isEnded
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200"
+                              : isJoined 
+                                ? "bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-red-500"
+                                : isFull 
+                                  ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none" 
+                                  : "bg-white border border-gray-300 text-[#444444] hover:border-[#444444] hover:bg-gray-50"
+                          } ${(processingEventId === event.id) ? "opacity-75 cursor-wait" : ""}`}
+                        >
+                          {processingEventId === event.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            event.isEnded ? "Ended" : (isJoined ? "Leave" : isFull ? "Full" : "Join")
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -490,7 +566,7 @@ export default function ActivitiesEventsPage() {
               We couldn't find any events matching your current filters. Why not take the lead and host something yourself?
             </p>
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={openCreateModal}
               className="bg-[#444444] hover:bg-[#333333] text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md transition-all hover:-translate-y-0.5 flex items-center gap-2"
             >
               <PenTool className="w-4 h-4" />
@@ -546,14 +622,45 @@ export default function ActivitiesEventsPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="date">Date</label>
-                  <input required id="date" name="date" type="date" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="startDate">Start Date</label>
+                  <input 
+                    required 
+                    id="startDate" 
+                    name="startDate" 
+                    type="date" 
+                    min={todayStr}
+                    value={formStartDate}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setFormStartDate(newStart);
+                      if (!formEndDate || formEndDate < newStart) {
+                        setFormEndDate(newStart);
+                      }
+                    }}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" 
+                  />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="startTime">Start Time</label>
                   <input required id="startTime" name="startTime" type="time" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="endDate">End Date</label>
+                  <input 
+                    required 
+                    id="endDate" 
+                    name="endDate" 
+                    type="date" 
+                    min={formStartDate || todayStr}
+                    value={formEndDate}
+                    onChange={(e) => setFormEndDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" 
+                  />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="endTime">End Time</label>
