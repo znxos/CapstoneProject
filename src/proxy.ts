@@ -7,7 +7,7 @@ export function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/forgot-password');
-  const isProtectedRoute = pathname.startsWith('/events') || pathname.startsWith('/profile') || pathname.startsWith('/chat') || pathname.startsWith('/onboarding');
+  const isProtectedRoute = pathname.startsWith('/student-hub') || pathname.startsWith('/dashboard') || pathname.startsWith('/events') || pathname.startsWith('/profile') || pathname.startsWith('/chat') || pathname.startsWith('/onboarding');
   
   // Redirect authenticated users away from auth pages
   if (isAuthPage && isAuth) {
@@ -36,6 +36,8 @@ export function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     "/api/:path*",
+    "/student-hub/:path*",
+    "/dashboard/:path*",
     "/onboarding/:path*",
     "/events/:path*",
     "/profile/:path*",
