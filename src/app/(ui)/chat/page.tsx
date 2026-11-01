@@ -275,7 +275,7 @@ export default function ChatPage() {
           </div>
 
           <div className="p-4 border-t border-[#e5e7eb] bg-white flex justify-center space-x-6 items-center text-gray-400 shrink-0">
-            <a href="/dashboard" className="hover:text-[#444444] transition-colors p-2" title="Dashboard">
+            <a href="/student-hub" className="hover:text-[#444444] transition-colors p-2" title="Student Hub">
               <LayoutDashboard className="w-5 h-5" />
             </a>
             <a href="/events" className="hover:text-[#444444] transition-colors p-2" title="Activities & Events">

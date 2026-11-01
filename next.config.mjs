@@ -8,6 +8,15 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      {
+        source: '/dashboard',
+        destination: '/student-hub',
+        permanent: true,
+      },
+    ]
+  },
 };
 
 export default nextConfig;

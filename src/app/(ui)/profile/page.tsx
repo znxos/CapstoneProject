@@ -316,7 +316,7 @@ export default function ProfilePage() {
       <nav className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto flex justify-center items-center">
           <div className="flex space-x-6 text-gray-400 items-center">
-            <a href="/dashboard" className="hover:text-[#444444] transition-colors p-2" title="Dashboard">
+            <a href="/student-hub" className="hover:text-[#444444] transition-colors p-2" title="Student Hub">
               <LayoutDashboard className="w-5 h-5" />
             </a>
             <a href="/events" className="hover:text-[#444444] transition-colors p-2" title="Activities & Events">
@@ -345,36 +345,38 @@ export default function ProfilePage() {
       <main className="max-w-4xl mx-auto py-10 px-4 sm:px-6">
         
         {/* Page Title & Actions */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-8">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+          <div className="flex-1 pr-0 sm:pr-6">
             <h1 className={`${merriweather.className} font-bold text-[32px] text-[#363636] tracking-normal`}>
               My Profile
             </h1>
-            <p className="text-gray-500 mt-1">Manage how the AI matches you with events and people.</p>
+            <p className="text-gray-500 mt-1 text-sm sm:text-base leading-relaxed">
+              Manage how the AI matches you with events and people &mdash; changes made here will affect how our algorithm matches you with others.
+            </p>
           </div>
           
-          <div>
+          <div className="shrink-0 self-start sm:self-auto">
             {!isLoading && (
               !isEditing ? (
                 <button 
                   onClick={handleEditClick}
-                  className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50 shadow-sm transition-all"
+                  className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50 shadow-sm transition-all whitespace-nowrap shrink-0"
                 >
                   <Edit3 className="w-4 h-4" /> Edit Profile
                 </button>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                   <button 
                     onClick={handleCancel}
                     disabled={isSaving}
-                    className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50 shadow-sm transition-all disabled:opacity-50"
+                    className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50 shadow-sm transition-all disabled:opacity-50 whitespace-nowrap"
                   >
                     <X className="w-4 h-4" /> Cancel
                   </button>
                   <button 
                     onClick={handleSave}
                     disabled={isSaving || isAnalyzing}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-all whitespace-nowrap ${
                       isSaving || isAnalyzing
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-[#444444] text-white hover:bg-[#333333] cursor-pointer"
