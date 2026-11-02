@@ -29,7 +29,8 @@ import {
   Palette,
   ArrowRight,
   GraduationCap,
-  Info
+  Info,
+  CheckCircle2
 } from "lucide-react";
 import { useGlobalChat } from "@/app/providers/GlobalChatProvider";
 
@@ -191,6 +192,9 @@ export default function ActivitiesEventsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [allEventsCount, setAllEventsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingMore, setIsGeneratingMore] = useState(false);
+  const [generateMoreSuccess, setGenerateMoreSuccess] = useState(false);
+  const [noMoreMatches, setNoMoreMatches] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isUrlLoaded, setIsUrlLoaded] = useState(false);
   const isFirstRender = React.useRef(true);
@@ -257,7 +261,11 @@ export default function ActivitiesEventsPage() {
   };
 
   const loadEvents = async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
+    if (showLoading) {
+      setIsLoading(true);
+      setNoMoreMatches(false);
+      setGenerateMoreSuccess(false);
+    }
     
     try {
       const queryParams = new URLSearchParams({
@@ -281,6 +289,47 @@ export default function ActivitiesEventsPage() {
     }
     
     if (showLoading) setIsLoading(false);
+  };
+
+  const handleGenerateMoreAI = async () => {
+    setIsGeneratingMore(true);
+    setGenerateMoreSuccess(false);
+    setNoMoreMatches(false);
+    try {
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: EVENTS_PER_PAGE.toString(),
+        tab: "recommended",
+        category: activeCategory,
+        generate_more: "true"
+      });
+      const res = await apiFetch(`/api/events?${queryParams.toString()}`);
+      if (res.ok) {
+        const result = await res.json();
+        const prevIds = events.map(e => e.id);
+        const newEvents = result.events || [];
+        const newIds = newEvents.map((e: any) => e.id);
+
+        // Check if the events list on this page is identical to before (no new matches)
+        const isIdentical = 
+          prevIds.length === newIds.length && 
+          prevIds.every((id, idx) => id === newIds[idx]);
+
+        setEvents(newEvents);
+        setTotalCount(result.totalCount || 0);
+
+        if (isIdentical || result.hasMoreMatches === false) {
+          setNoMoreMatches(true);
+        } else {
+          setGenerateMoreSuccess(true);
+          setTimeout(() => setGenerateMoreSuccess(false), 3500);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to generate more AI recommendations:", err);
+    } finally {
+      setIsGeneratingMore(false);
+    }
   };
 
   // Read from URL on mount
@@ -918,6 +967,51 @@ export default function ActivitiesEventsPage() {
           })
           )}
         </div>
+
+        {/* On-Demand Generate More AI Matches Action (Recommended Tab Only - Last Page Only) */}
+        {activeTab === "recommended" && !isLoading && events.length > 0 && currentPage === totalPages && (
+          <div className="flex flex-col items-center justify-center mt-10 mb-2 animate-in fade-in duration-300">
+            <button
+              onClick={handleGenerateMoreAI}
+              disabled={isGeneratingMore || isLoading || noMoreMatches}
+              className={`inline-flex items-center gap-2.5 px-6 py-3 rounded-full text-white font-bold text-xs uppercase tracking-wider shadow-md transition-all duration-200 border ${
+                noMoreMatches
+                  ? "bg-gray-800/80 border-gray-700/80 text-gray-300 cursor-not-allowed shadow-none"
+                  : "bg-gradient-to-r from-gray-900 via-[#333333] to-gray-900 hover:shadow-xl hover:scale-105 active:scale-95 border-gray-700/50 disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
+              }`}
+            >
+              {isGeneratingMore ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                  <span>Analyzing Campus Matches with AI...</span>
+                </>
+              ) : noMoreMatches ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span className="text-gray-200">No More Matches Available</span>
+                </>
+              ) : generateMoreSuccess ? (
+                <>
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-300">Matches Updated with AI!</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <span>Generate More AI Matches</span>
+                </>
+              )}
+            </button>
+            <p className="text-[11px] text-gray-500 mt-2 font-medium">
+              {noMoreMatches
+                ? "All available campus events have been evaluated. Check back later as new events are posted!"
+                : generateMoreSuccess 
+                  ? "Evaluated additional campus events and updated match rankings."
+                  : "You've reached the end of current matches. Click to analyze more unjoined campus events."
+              }
+            </p>
+          </div>
+        )}
 
         {/* Elevated Floating Pill Pagination */}
         {totalCount > EVENTS_PER_PAGE && (
