@@ -484,17 +484,9 @@ export default function StudentHubPage() {
         <title>Student Hub | The Quad</title>
       </Head>
 
-      {/* Sticky Navigation / Header Area */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          
-          <div className="flex items-center space-x-3">
-            <span className="text-xl font-black text-[#444444] tracking-tight">The Quad</span>
-            <span className="hidden sm:inline-block text-[11px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md uppercase tracking-wider">
-              Student Hub
-            </span>
-          </div>
-
+      {/* Navigation / Header Area - Centered Floating Pill */}
+      <header className="z-50 w-full flex justify-center pt-4 pb-[20px] px-4 pointer-events-none">
+        <nav className="pointer-events-auto bg-white/95 backdrop-blur-md border border-gray-200/90 shadow-md shadow-gray-200/50 rounded-full px-6 py-2 flex items-center justify-center transition-all">
           <div className="flex space-x-6 text-gray-400 items-center">
             {/* Student Hub (Active) */}
             <a href="/student-hub" className="text-[#444444] border-b-2 border-[#444444] pb-1 px-2 pt-2" title="Student Hub">
@@ -524,9 +516,8 @@ export default function StudentHubPage() {
               <LogOut className="w-5 h-5" />
             </button>
           </div>
-
-        </div>
-      </nav>
+        </nav>
+      </header>
 
       {/* Main Content Area */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-12">

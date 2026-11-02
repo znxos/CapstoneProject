@@ -442,7 +442,7 @@ export default function ActivitiesEventsPage() {
       <AcademicBackgroundPattern />
 
       {/* Navigation / Header Area - Centered Floating Pill */}
-      <header className="sticky top-0 z-50 w-full flex justify-center pt-4 pb-[20px] px-4 pointer-events-none">
+      <header className="z-50 w-full flex justify-center pt-4 pb-[20px] px-4 pointer-events-none">
         <nav className="pointer-events-auto bg-white/95 backdrop-blur-md border border-gray-200/90 shadow-md shadow-gray-200/50 rounded-full px-6 py-2 flex items-center justify-center transition-all">
           <div className="flex space-x-6 text-gray-400 items-center">
             <a href="/student-hub" className="hover:text-[#444444] transition-colors p-2" title="Student Hub">
@@ -454,7 +454,7 @@ export default function ActivitiesEventsPage() {
             <a href="/chat" className="hover:text-[#444444] transition-colors p-2 relative" title="Chat">
               <MessageSquare className="w-5 h-5" />
               {totalUnreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
               )}
             </a>
             <a href="/profile" className="hover:text-[#444444] transition-colors p-2" title="Profile">
@@ -506,15 +506,16 @@ export default function ActivitiesEventsPage() {
 
         {/* Motivating "Find Your People" Catalyst Banner */}
         {!isBannerDismissed && (
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#222222] via-[#2f2f2f] to-[#3d3d3d] text-white p-6 sm:p-8 mb-8 border border-gray-700/60 shadow-xl animate-in fade-in duration-300">
-            {/* Background Glow Accents */}
-            <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute -bottom-10 left-1/3 w-56 h-56 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#172033] via-[#1c222c] to-[#2d2719] text-white p-6 sm:p-8 mb-8 border border-gray-700/60 shadow-2xl animate-in fade-in duration-300">
+            {/* Background Yellow and Blue Ambient Gradient Glows */}
+            <div className="absolute -top-16 -right-12 w-72 h-72 bg-blue-500/25 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -bottom-14 -left-12 w-72 h-72 bg-amber-400/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 via-transparent to-blue-500/15 pointer-events-none"></div>
 
             {/* Top Bar: Pill Tag & Dismiss Button */}
             <div className="relative z-10 flex items-center justify-between mb-4">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-[#26241e] text-[#f6cb56] border border-[#f6cb56]/30 shadow-2xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#f6cb56]" /> FIND YOUR PEOPLE
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/20 shadow-2xs">
+                <Sparkles className="w-3.5 h-3.5 text-white" /> FIND YOUR PEOPLE
               </span>
               <button 
                 onClick={() => setIsBannerDismissed(true)}
@@ -537,9 +538,9 @@ export default function ActivitiesEventsPage() {
             </div>
 
             {/* 3 Core Value Pillars */}
-            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div className="flex items-start space-x-3 bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="w-7 h-7 flex items-center justify-center shrink-0 mt-0.5 text-[#f6cb56]">
+                <div className="w-7 h-7 flex items-center justify-center shrink-0 mt-0.5 text-white">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
@@ -549,7 +550,7 @@ export default function ActivitiesEventsPage() {
               </div>
 
               <div className="flex items-start space-x-3 bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="w-7 h-7 flex items-center justify-center shrink-0 mt-0.5 text-[#f6cb56]">
+                <div className="w-7 h-7 flex items-center justify-center shrink-0 mt-0.5 text-white">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
@@ -559,7 +560,7 @@ export default function ActivitiesEventsPage() {
               </div>
 
               <div className="flex items-start space-x-3 bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="w-7 h-7 flex items-center justify-center shrink-0 mt-0.5 text-[#f6cb56]">
+                <div className="w-7 h-7 flex items-center justify-center shrink-0 mt-0.5 text-white">
                   <MessageSquare className="w-5 h-5" />
                 </div>
                 <div>
@@ -567,16 +568,6 @@ export default function ActivitiesEventsPage() {
                   <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">A private group chat is unlocked the instant someone joins.</p>
                 </div>
               </div>
-            </div>
-
-            {/* Bottom Bar: CTA (Red box stat removed per user request) */}
-            <div className="relative z-10 flex items-center justify-end pt-2">
-              <button 
-                onClick={openCreateModal}
-                className="bg-white hover:bg-gray-100 text-gray-900 px-6 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center active:scale-95 shrink-0"
-              >
-                Host Event
-              </button>
             </div>
           </div>
         )}
@@ -636,9 +627,7 @@ export default function ActivitiesEventsPage() {
         {activeTab === "recommended" && !isRecommendedExplainerDismissed && (
           <div className="bg-white/85 backdrop-blur-md border border-gray-200/80 rounded-2xl px-8 py-3 mb-6 relative flex items-center justify-center shadow-2xs animate-in fade-in duration-300">
             <div className="flex flex-wrap items-center justify-center gap-2 text-center">
-              <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 text-gray-600 shadow-2xs">
-                <Sparkles className="w-3.5 h-3.5" />
-              </div>
+              <Sparkles className="w-4 h-4 text-gray-500 shrink-0" />
               <p className="text-xs text-gray-700 leading-snug text-center">
                 Our algorithm will match you with others in real-time by matching your bio information captured during onboarding.
               </p>
@@ -646,7 +635,7 @@ export default function ActivitiesEventsPage() {
                 href="/profile" 
                 className="inline-flex items-center gap-1 text-xs font-bold text-gray-900 hover:text-black hover:underline transition-all shrink-0 ml-1"
               >
-                <span>Tune Profile</span>
+                <span>Manage Profile</span>
                 <ArrowRight className="w-3.5 h-3.5 text-gray-500" />
               </a>
             </div>
@@ -1018,8 +1007,8 @@ export default function ActivitiesEventsPage() {
 
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-white/10 text-blue-300 border border-white/15 mb-3">
-                <Compass className="w-3.5 h-3.5 text-blue-300" /> Cross-Campus Horizon
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 mb-3">
+                <Compass className="w-3.5 h-3.5 text-white" /> Cross-Campus Connect
               </div>
               
               <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
@@ -1027,7 +1016,7 @@ export default function ActivitiesEventsPage() {
               </h3>
               
               <p className="text-gray-300 text-sm leading-relaxed mb-4">
-                Step outside your campus bubble. Check out the latest student community photo drops and browse public campus events hosted across UCT, Stellenbosch, CPUT, and UWC.
+                Step outside your institution's bubble. Check out the latest student community photo drops and browse public campus events hosted across the major institutions in South Africa.
               </p>
 
               {/* University Badges */}
@@ -1053,7 +1042,7 @@ export default function ActivitiesEventsPage() {
                 className="px-6 py-3.5 rounded-2xl bg-white text-gray-900 hover:bg-gray-100 font-bold text-xs sm:text-sm shadow-xl hover:shadow-2xl transition-all duration-200 flex items-center justify-center gap-2 group/btn active:scale-95"
               >
                 <span>Visit Student Hub</span>
-                <ArrowRight className="w-4 h-4 text-[#444444] group-hover/btn:translate-x-1 transition-transform" />
+                <ChevronRight className="w-4 h-4 text-[#444444] group-hover/btn:translate-x-1 transition-transform" />
               </a>
             </div>
           </div>

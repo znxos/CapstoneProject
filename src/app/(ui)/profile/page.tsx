@@ -312,9 +312,9 @@ export default function ProfilePage() {
         <title>My Profile | The Quad</title>
       </Head>
 
-      {/* Global Navigation Header */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto flex justify-center items-center">
+      {/* Navigation / Header Area - Centered Floating Pill */}
+      <header className="z-50 w-full flex justify-center pt-4 pb-[20px] px-4 pointer-events-none">
+        <nav className="pointer-events-auto bg-white/95 backdrop-blur-md border border-gray-200/90 shadow-md shadow-gray-200/50 rounded-full px-6 py-2 flex items-center justify-center transition-all">
           <div className="flex space-x-6 text-gray-400 items-center">
             <a href="/student-hub" className="hover:text-[#444444] transition-colors p-2" title="Student Hub">
               <LayoutDashboard className="w-5 h-5" />
@@ -325,7 +325,7 @@ export default function ProfilePage() {
             <a href="/chat" className="hover:text-[#444444] transition-colors p-2 relative" title="Chat">
               <MessageSquare className="w-5 h-5" />
               {totalUnreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
               )}
             </a>
             <a href="/profile" className="text-[#444444] border-b-2 border-[#444444] pb-1 px-2 pt-2" title="Profile">
@@ -339,8 +339,8 @@ export default function ProfilePage() {
               <LogOut className="w-5 h-5" />
             </button>
           </div>
-        </div>
-      </nav>
+        </nav>
+      </header>
 
       <main className="max-w-4xl mx-auto py-10 px-4 sm:px-6">
         
