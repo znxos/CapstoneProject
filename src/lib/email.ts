@@ -13,7 +13,7 @@ export async function sendVerificationEmail(email: string, token: string) {
       html: `
         <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto;">
           <h2>Welcome!</h2>
-          <p>Please confirm your email address by clicking the link below. This link will expire in 24 hours.</p>
+          <p>Please confirm your email address by clicking the link below. This link will expire in 2 hours.</p>
           <div style="margin: 30px 0;">
             <a href="${confirmLink}" style="background-color: #363636; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
               Verify Email Address

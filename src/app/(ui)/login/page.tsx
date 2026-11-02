@@ -18,13 +18,37 @@ function LoginContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isUnverified, setIsUnverified] = useState(false);
+  const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [success, setSuccess] = useState<string | null>(isVerified ? "Account successfully verified! Please log in." : null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleResendVerification = async () => {
+    if (!email || resendStatus === "sending") return;
+    setResendStatus("sending");
+    try {
+      const res = await apiFetch("/api/auth/resend-verification", {
+        method: "POST",
+        body: JSON.stringify({ email })
+      });
+      if (res.ok) {
+        setResendStatus("sent");
+        setTimeout(() => setResendStatus("idle"), 6000);
+      } else {
+        setResendStatus("error");
+        setTimeout(() => setResendStatus("idle"), 4000);
+      }
+    } catch {
+      setResendStatus("error");
+      setTimeout(() => setResendStatus("idle"), 4000);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setIsUnverified(false);
     setSuccess(null);
 
     try {
@@ -40,8 +64,14 @@ function LoginContent() {
       if (!res.ok) {
         if (res.status === 401) {
           setError("Invalid email or password");
+          setIsUnverified(false);
+        } else if (res.status === 403) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.detail || "Please verify your email address before logging in.");
+          setIsUnverified(true);
         } else {
           setError("An error occurred during login.");
+          setIsUnverified(false);
         }
         setIsLoading(false);
       } else {
@@ -72,12 +102,43 @@ function LoginContent() {
               </p>
             </header>
 
-            {error && (
+            {isUnverified ? (
+              <div className="mb-5 p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 text-sm animate-in fade-in duration-200">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-amber-900 text-sm">Verify Your Email First</h3>
+                    <p className="text-amber-800/90 text-xs mt-1 leading-relaxed">
+                      Your account is registered but hasn&apos;t been verified yet. Please click the confirmation link sent to your student inbox.
+                    </p>
+                    
+                    <div className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center">
+                      <button
+                        type="button"
+                        onClick={handleResendVerification}
+                        disabled={resendStatus === "sending" || resendStatus === "sent"}
+                        className="text-xs font-bold text-amber-950 underline hover:text-black transition-colors disabled:opacity-60 cursor-pointer"
+                      >
+                        {resendStatus === "sending"
+                          ? "Sending link..."
+                          : resendStatus === "sent"
+                          ? "✓ Verification link resent!"
+                          : resendStatus === "error"
+                          ? "Failed to resend. Try again."
+                          : "Resend verification link"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : error ? (
               <div className="mb-4 p-3 bg-red-50 text-red-600 text-[14px] rounded-lg border border-red-100 flex items-center">
                 <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 {error}
               </div>
-            )}
+            ) : null}
 
             {success && (
               <div className="mb-4 p-3 bg-green-50 text-green-700 text-[14px] rounded-lg border border-green-200 flex items-center">
@@ -104,7 +165,11 @@ function LoginContent() {
                     id="email"
                     name="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (isUnverified) setIsUnverified(false);
+                      if (error) setError(null);
+                    }}
                     placeholder="email@address.com"
                     type="email"
                     required
