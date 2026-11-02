@@ -484,7 +484,7 @@ export default function ActivitiesEventsPage() {
   return (
     <div className="min-h-screen bg-[#f9fafb] text-gray-800 font-sans relative overflow-x-hidden selection:bg-[#444444] selection:text-white">
       <Head>
-        <title>Activities & Events | The Quad</title>
+        <title>Activities & Events</title>
       </Head>
 
       {/* Non-distractive, evenly distributed Academic SVG Watermark Pattern spanning the entire page */}
@@ -532,7 +532,7 @@ export default function ActivitiesEventsPage() {
             </div>
             
             <h1 className="text-3xl sm:text-4xl font-extrabold text-[#222222] tracking-tight mb-2">Activities & Events</h1>
-            <p className="text-gray-500 text-sm">Discover and join events matched to your interests and social energy.</p>
+            <p className="text-gray-500 text-sm">Discover and join activities and events matched to your interests and social energy created by people at your insititution.</p>
             {isBannerDismissed && (
               <button 
                 onClick={() => setIsBannerDismissed(false)}
@@ -604,7 +604,7 @@ export default function ActivitiesEventsPage() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-white">Small & Casual</h3>
-                  <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">Cap at 2–4 people (max 10) for a low-pressure coffee run, gym session, or study.</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">Set a limit (max 10 people) for a low-pressure coffee run, gym session, or study.</p>
                 </div>
               </div>
 
