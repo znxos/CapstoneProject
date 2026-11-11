@@ -76,7 +76,11 @@ function LoginContent() {
         setIsLoading(false);
       } else {
         const data = await res.json();
-        Cookies.set('access_token', data.access_token, { expires: 7 }); // expires in 7 days
+        Cookies.set('access_token', data.access_token, { 
+          expires: 7,
+          sameSite: 'lax',
+          secure: typeof window !== 'undefined' && window.location.protocol === 'https:'
+        });
         if (data.isFirstLogin) {
           window.location.href = "/onboarding";
         } else {
