@@ -334,6 +334,23 @@ export default function ActivitiesEventsPage() {
 
   // Read from URL on mount
   React.useEffect(() => {
+    // Check onboarding status on mount
+    async function checkFirstLogin() {
+      try {
+        const res = await apiFetch("/api/auth/me");
+        if (res.ok) {
+          const user = await res.json();
+          if (user.isFirstLogin) {
+            window.location.href = "/onboarding";
+            return;
+          }
+        }
+      } catch (err) {
+        // Silently continue if network fails
+      }
+    }
+    checkFirstLogin();
+
     const searchParams = new URLSearchParams(window.location.search);
     const tab = searchParams.get("tab") as any;
     const categoryFromUrl = searchParams.get("category");

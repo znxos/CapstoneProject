@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Head from "next/head";
 import Cookies from "js-cookie";
+import { apiFetch } from "@/lib/api";
 import { 
   LayoutDashboard, 
   CalendarRange, 
@@ -367,6 +368,25 @@ export default function StudentHubPage() {
 
   // Other Universities Horizontal Scroll State
   const scrollContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    async function checkFirstLogin() {
+      try {
+        const res = await apiFetch("/api/auth/me");
+        if (res.ok) {
+          const user = await res.json();
+          if (user.isFirstLogin) {
+            window.location.href = "/onboarding";
+            return;
+          }
+        }
+      } catch (err) {
+        // Silently continue if network fails
+      }
+    }
+    checkFirstLogin();
+  }, []);
 
   // Auto-advance photo carousel every 5.5s unless hovered
   useEffect(() => {

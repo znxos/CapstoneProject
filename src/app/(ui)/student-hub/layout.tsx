@@ -1,0 +1,45 @@
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import React from "react";
+
+export default async function StudentHubLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token");
+
+  if (!token) {
+    redirect("/login");
+  }
+
+  const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+  let shouldRedirect = "";
+  try {
+    const res = await fetch(`${apiUrl}/api/auth/me`, {
+      headers: { 
+        Authorization: `Bearer ${token.value}`,
+        'X-API-Key': process.env.API_SECRET_KEY || ''
+      },
+      cache: 'no-store'
+    });
+    if (!res.ok) {
+      shouldRedirect = "/login";
+    } else {
+      const user = await res.json();
+      if (user.isFirstLogin) {
+        shouldRedirect = "/onboarding";
+      }
+    }
+  } catch (e) {
+    console.error("StudentHub layout fetch error:", e);
+  }
+
+  if (shouldRedirect) {
+    redirect(shouldRedirect);
+  }
+
+  return <>{children}</>;
+}
+
