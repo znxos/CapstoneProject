@@ -231,7 +231,6 @@ export default function ActivitiesEventsPage() {
   };
 
   const handleTabChange = (tab: "recommended" | "my-events" | "created-events") => {
-    setRecommendationPoolSize(null);
     setActiveTab(tab);
   };
 
@@ -372,7 +371,7 @@ export default function ActivitiesEventsPage() {
       if (matchedCategory) setActiveCategory(matchedCategory);
     }
     if (page) setCurrentPage(Number(page));
-    if (tab === "recommended" && Number.isInteger(poolSize) && poolSize >= 12) {
+    if (Number.isInteger(poolSize) && poolSize >= 12) {
       setRecommendationPoolSize(poolSize);
     }
     
@@ -386,7 +385,7 @@ export default function ActivitiesEventsPage() {
     params.set("tab", activeTab);
     params.set("category", activeCategory.toLowerCase());
     params.set("page", currentPage.toString());
-    if (activeTab === "recommended" && recommendationPoolSize !== null) {
+    if (recommendationPoolSize !== null) {
       params.set("pool_size", recommendationPoolSize.toString());
     } else {
       params.delete("pool_size");
@@ -1114,16 +1113,20 @@ export default function ActivitiesEventsPage() {
             <div className="bg-gray-100 w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner">
               <SearchX className="w-10 h-10 text-gray-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">It's a little quiet here...</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {activeTab === "my-events" ? "You haven't joined any events yet" : "It's a little quiet here..."}
+            </h2>
             <p className="text-gray-500 max-w-md mx-auto mb-8">
-              We couldn't find any events matching your current filters. Why not take the lead and host something yourself?
+              {activeTab === "my-events"
+                ? "Join an event from your recommendations and it will show up here."
+                : "We couldn't find any events matching your current filters. Why not take the lead and host something yourself?"}
             </p>
             <button 
-              onClick={openCreateModal}
+              onClick={activeTab === "my-events" ? () => handleTabChange("recommended") : openCreateModal}
               className="bg-[#444444] hover:bg-[#333333] text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md transition-all hover:-translate-y-0.5 flex items-center gap-2"
             >
-              <PenTool className="w-4 h-4" />
-              Be the first to create one!
+              {activeTab === "my-events" ? <Sparkles className="w-4 h-4" /> : <PenTool className="w-4 h-4" />}
+              {activeTab === "my-events" ? "Browse recommended events" : "Be the first to create one!"}
             </button>
           </div>
         )}
