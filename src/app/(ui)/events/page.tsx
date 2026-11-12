@@ -195,6 +195,7 @@ export default function ActivitiesEventsPage() {
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [generateMoreSuccess, setGenerateMoreSuccess] = useState(false);
   const [noMoreMatches, setNoMoreMatches] = useState(false);
+  const [recommendationPoolSize, setRecommendationPoolSize] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isUrlLoaded, setIsUrlLoaded] = useState(false);
   const isFirstRender = React.useRef(true);
@@ -227,6 +228,16 @@ export default function ActivitiesEventsPage() {
       const y = eventGridRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
     }
+  };
+
+  const handleTabChange = (tab: "recommended" | "my-events" | "created-events") => {
+    setRecommendationPoolSize(null);
+    setActiveTab(tab);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setRecommendationPoolSize(null);
+    setActiveCategory(category);
   };
 
   const getPageNumbers = () => {
@@ -274,6 +285,9 @@ export default function ActivitiesEventsPage() {
         tab: activeTab,
         category: activeCategory
       });
+      if (activeTab === "recommended" && recommendationPoolSize !== null) {
+        queryParams.set("pool_size", recommendationPoolSize.toString());
+      }
       
       const res = await apiFetch(`/api/events?${queryParams.toString()}`);
       if (res.ok) {
@@ -301,24 +315,19 @@ export default function ActivitiesEventsPage() {
         limit: EVENTS_PER_PAGE.toString(),
         tab: "recommended",
         category: activeCategory,
+        pool_size: totalCount.toString(),
         generate_more: "true"
       });
       const res = await apiFetch(`/api/events?${queryParams.toString()}`);
       if (res.ok) {
         const result = await res.json();
-        const prevIds = events.map(e => e.id);
         const newEvents = result.events || [];
-        const newIds = newEvents.map((e: any) => e.id);
-
-        // Check if the events list on this page is identical to before (no new matches)
-        const isIdentical = 
-          prevIds.length === newIds.length && 
-          prevIds.every((id, idx) => id === newIds[idx]);
 
         setEvents(newEvents);
         setTotalCount(result.totalCount || 0);
+        setRecommendationPoolSize(result.totalCount || totalCount);
 
-        if (isIdentical || result.hasMoreMatches === false) {
+        if ((result.totalCount || 0) <= totalCount || result.hasMoreMatches === false) {
           setNoMoreMatches(true);
         } else {
           setGenerateMoreSuccess(true);
@@ -355,6 +364,7 @@ export default function ActivitiesEventsPage() {
     const tab = searchParams.get("tab") as any;
     const categoryFromUrl = searchParams.get("category");
     const page = searchParams.get("page");
+    const poolSize = Number(searchParams.get("pool_size"));
 
     if (tab) setActiveTab(tab);
     if (categoryFromUrl) {
@@ -362,6 +372,9 @@ export default function ActivitiesEventsPage() {
       if (matchedCategory) setActiveCategory(matchedCategory);
     }
     if (page) setCurrentPage(Number(page));
+    if (tab === "recommended" && Number.isInteger(poolSize) && poolSize >= 12) {
+      setRecommendationPoolSize(poolSize);
+    }
     
     setIsUrlLoaded(true);
   }, []);
@@ -373,8 +386,13 @@ export default function ActivitiesEventsPage() {
     params.set("tab", activeTab);
     params.set("category", activeCategory.toLowerCase());
     params.set("page", currentPage.toString());
+    if (activeTab === "recommended" && recommendationPoolSize !== null) {
+      params.set("pool_size", recommendationPoolSize.toString());
+    } else {
+      params.delete("pool_size");
+    }
     window.history.replaceState(null, '', `?${params.toString()}`);
-  }, [activeTab, activeCategory, currentPage, isUrlLoaded]);
+  }, [activeTab, activeCategory, currentPage, recommendationPoolSize, isUrlLoaded]);
 
   // Reset to page 1 ONLY when tab or category changes, not on mount
   React.useEffect(() => {
@@ -641,21 +659,21 @@ export default function ActivitiesEventsPage() {
         {/* Main Tabs */}
         <div className="flex border-b border-gray-200 mb-6 space-x-8 overflow-x-auto chat-scrollbar">
           <button 
-            onClick={() => setActiveTab("recommended")}
+            onClick={() => handleTabChange("recommended")}
             className={`pb-3 flex items-center gap-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeTab === "recommended" ? "text-[#444444]" : "text-gray-400 hover:text-gray-600"}`}
           >
             <Sparkles className="w-4 h-4" /> Recommended
             {activeTab === "recommended" && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#444444] rounded-t-full"></span>}
           </button>
           <button 
-            onClick={() => setActiveTab("my-events")}
+            onClick={() => handleTabChange("my-events")}
             className={`pb-3 flex items-center gap-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeTab === "my-events" ? "text-[#444444]" : "text-gray-400 hover:text-gray-600"}`}
           >
             <Ticket className="w-4 h-4" /> Joined Events
             {activeTab === "my-events" && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#444444] rounded-t-full"></span>}
           </button>
           <button 
-            onClick={() => setActiveTab("created-events")}
+            onClick={() => handleTabChange("created-events")}
             className={`pb-3 flex items-center gap-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeTab === "created-events" ? "text-[#444444]" : "text-gray-400 hover:text-gray-600"}`}
           >
             <PenTool className="w-4 h-4" /> Created Events
@@ -670,7 +688,7 @@ export default function ActivitiesEventsPage() {
             return (
               <button
                 key={name}
-                onClick={() => setActiveCategory(name)}
+                onClick={() => handleCategoryChange(name)}
                 className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 flex items-center gap-2 whitespace-nowrap shadow-2xs ${
                   isActive 
                     ? "bg-[#222222] text-white shadow-md shadow-black/10 scale-[1.02] border border-[#222222]" 
