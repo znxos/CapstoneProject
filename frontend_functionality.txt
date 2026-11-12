@@ -1,0 +1,80 @@
+# Web App Frontend Functionality - Detailed Overview
+
+The frontend is a Next.js 14 (App Router) application built to facilitate a social networking platform for university students. It integrates authentication, real-time messaging, and an AI-driven event recommender system.
+
+Below is a detailed breakdown of every functional aspect of the frontend.
+
+## 1. Authentication & Security
+Powered by `NextAuth.js`, `bcryptjs`, and custom Prisma models.
+- **Sign Up**: Users register using a student email and password. A verification token is generated, stored in the database, and sent to the user's email via the `Resend` service.
+- **Email Verification (2FA)**: Prevents unverified users from fully accessing the platform. Re-verification has a 3-month cooldown rule.
+- **Log In**: Standard credential-based login. Checks verification status.
+- **Forgot/Reset Password**: Generates a secure, 24-hour expiration token sent via email. Enforces a rule where the new password must be different from the previously used one.
+- **Route Protection (Middleware)**: Next.js middleware explicitly protects `/events`, `/profile`, `/chat`, and `/onboarding` paths, ensuring unauthenticated users are redirected to `/login`, and authenticated users are redirected away from auth-centric pages.
+- **Verification REST API (`/api/verify`)**: An endpoint to handle processing of the email verification token when a user clicks the confirmation link.
+- **WebSocket Authentication (`/api/pusher/auth`)**: A secure endpoint to authorize and establish user presence for private, encrypted Pusher channels (`private-encrypted-${eventId}`).
+
+## 2. Onboarding & User Profiles
+Controlled by `onboarding-engine.ts` and `src/lib/ai/onboarding.ts`.
+- **First-Time Flow**: Upon their first login, users are required to fill out a detailed onboarding form. 
+- **Data Collected**:
+  - Display Name, Age, University, Year of Study (detects if First-Time University student).
+  - Languages spoken, Bio.
+  - Social Energy Metrics: Introvert/Extrovert Score, Social Energy Level (High/Low).
+  - Categorical Tags: Interests, "Looking For" tags.
+- **AI Tag Extraction**: During onboarding, the user's written bio is processed by Google Gemini models to automatically extract up to 5 concise, single-word hobby/interest tags (formatted in uppercase JSON). This extraction engine uses a robust failover rotation system that iterates through an array of Gemini models (from `gemini-2.5-flash` up to `gemini-3.8-flash`) and multiple API keys to ensure high availability and prevent rate limits.
+- **Profile Embeddings**: A vector embedding of the user's profile is automatically generated via Google Generative AI (`gemini-embedding-2`) to feed into the recommendation engine.
+
+## 3. Event Management
+Users can create, discover, and join events via the `/events` feed.
+- **Create Event Flow**: Hosts can set Title, Category, Description, Start/End Time, Location, and Capacity (strictly between 3 to 10 participants). The host is automatically added as the first participant.
+- **Event Vectorization**: Upon creation, an AI vector embedding of the event's title, category, and description is generated via `gemini-embedding-2` and cached.
+- **Event Discovery UI Flow**: The frontend displays a tabbed interface containing:
+  - **Recommended**: Highly relevant events matching the user's profile and tags.
+  - **My Events**: Events the user has joined.
+  - **Created Events**: Events the user is hosting.
+  - A Category filter and Server-Side Pagination are applied to optimize feed rendering.
+- **Event Details Flow**: The UI handles viewing specific event details (participants, locations, capacity) dynamically without a separate dynamic route page, likely utilizing modals or side-panels within the feed.
+- **Join/Leave Flow**: Users can join events up to the predefined capacity limit. Trying to exceed capacity returns a 409 status. Users can freely leave events they have joined.
+
+## 4. AI Recommender System (The Core Engine)
+Powered by `recommender-engine.ts`, it retrieves and ranks events based on a 3-layer architecture.
+
+- **Layer 1: Hard Filtering (Safety & Relevance)**
+  - **University Ring-Fencing**: Users can only see events hosted by students from their own university.
+  - **First-Year Ring-Fencing**: First-year students (Age <= 19 AND Year 1) can ONLY see and join events hosted by other first-year students. Conversely, non-first-years cannot join first-year events.
+
+- **Layer 2: Semantic Scoring (0-99 Scale)**
+  - **Vector Similarity**: Computes Cosine Similarity between the User's Vector Embedding and the Event's Vector Embedding.
+  - **Heuristic Weights**:
+    - **Category Match**: Bonus points if the event category matches the user's tags.
+    - **Energy Match**: High-energy users get bonuses for "Social/Party/Outdoors" events. Low-energy users get bonuses for "Study/Creative" events.
+    - **Host Compatibility**: Bonus points for Shared Languages, Shared Interests, Age proximity (within 2 years), Same Year of Study, and if both are International Students.
+
+- **Layer 3: LLM Rationales (Explainable AI)**
+  - For recommended events, the engine batches a prompt to Google Gemini containing the user's profile context and the host's event context.
+  - Gemini generates a natural language "rationale" explaining *why* this specific event is a good match for the user.
+  - Rationales are cached in the database (`EventRationale` model) utilizing a SHA-256 hash of the user's profile to determine if a fresh rationale needs to be generated (cache invalidation).
+
+## 5. Real-Time Chat Engine
+Powered by `chat-engine.ts` and `Pusher` WebSockets.
+- **Event Chat Rooms**: Every event has a dedicated chat channel accessible from the sidebar. Users can only send messages if they are an active participant or the host of that event.
+- **Anti-Spam System**: Prevents users from sending messages faster than 1 second apart, and blocks duplicate messages sent within 10 seconds.
+- **Inline AI Moderation**: 
+  - Messages are sent to Google Gemini for real-time toxicity and guideline checks.
+  - If flagged by AI, the message payload is intercepted and replaced with: "This message has been removed for violating our community guidelines."
+  - The flagged status is saved to the database to prevent rendering harmful content on page reloads.
+
+## 6. System Utilities (AI Rate Limiting)
+- **AI Rate Limiting (`AILimiter`)**: An in-memory rate-limiting class prevents the system from exceeding Google Gemini API quotas. It caps AI moderation requests (Chat) and AI generation requests (Recommendations) strictly to a set number of requests per minute (e.g., 5 RPM for chat moderation).
+
+## 7. Technology Stack Summary
+- **Framework**: Next.js 14.2 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS, PostCSS, Lucide React (Icons)
+- **Database**: PostgreSQL
+- **ORM**: Prisma Client 5.10
+- **Real-Time Engine**: Pusher JS
+- **AI Integrations**: `@google/generative-ai` (Gemini API for embeddings, moderation, and rationales)
+- **Email Service**: Resend (Transactional emails)
+- **Authentication**: NextAuth.js v4 with `bcryptjs`

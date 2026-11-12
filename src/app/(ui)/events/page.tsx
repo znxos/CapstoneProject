@@ -326,7 +326,7 @@ export default function ActivitiesEventsPage() {
         }
       }
     } catch (err) {
-      console.error("Failed to generate more AI recommendations:", err);
+      console.error("Failed to generate more recommendations:", err);
     } finally {
       setIsGeneratingMore(false);
     }
@@ -1000,7 +1000,7 @@ export default function ActivitiesEventsPage() {
               {isGeneratingMore ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                  <span>Analyzing Campus Matches with AI...</span>
+                  <span>Analysing Matches...</span>
                 </>
               ) : noMoreMatches ? (
                 <>
@@ -1010,18 +1010,18 @@ export default function ActivitiesEventsPage() {
               ) : generateMoreSuccess ? (
                 <>
                   <Sparkles className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-300">Matches Updated with AI!</span>
+                  <span className="text-emerald-300">Matches Updated</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                  <span>Generate More AI Matches</span>
+                  <span>Generate More Recommendations</span>
                 </>
               )}
             </button>
             <p className="text-[11px] text-gray-500 mt-2 font-medium">
               {noMoreMatches
-                ? "All available campus events have been evaluated. Check back later as new events are posted!"
+                ? "That's all the available events we currently have. Check back later as new events are posted!"
                 : generateMoreSuccess 
                   ? "Evaluated additional campus events and updated match rankings."
                   : "You've reached the end of current matches. Click to analyze more unjoined campus events."
