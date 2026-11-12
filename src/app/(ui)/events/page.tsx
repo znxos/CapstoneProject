@@ -189,6 +189,8 @@ export default function ActivitiesEventsPage() {
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const [isRecommendedExplainerDismissed, setIsRecommendedExplainerDismissed] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
+  const [recommendedPool, setRecommendedPool] = useState<any[] | null>(null);
+  const [recommendedPoolCategory, setRecommendedPoolCategory] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [allEventsCount, setAllEventsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -196,9 +198,9 @@ export default function ActivitiesEventsPage() {
   const [generateMoreSuccess, setGenerateMoreSuccess] = useState(false);
   const [noMoreMatches, setNoMoreMatches] = useState(false);
   const [recommendationPoolSize, setRecommendationPoolSize] = useState<number | null>(null);
+  const [recommendedHasMoreMatches, setRecommendedHasMoreMatches] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isUrlLoaded, setIsUrlLoaded] = useState(false);
-  const isFirstRender = React.useRef(true);
   const eventGridRef = React.useRef<HTMLDivElement>(null);
   const [processingEventId, setProcessingEventId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
@@ -231,10 +233,12 @@ export default function ActivitiesEventsPage() {
   };
 
   const handleTabChange = (tab: "recommended" | "my-events" | "created-events") => {
+    setCurrentPage(1);
     setActiveTab(tab);
   };
 
   const handleCategoryChange = (category: string) => {
+    setCurrentPage(1);
     setRecommendationPoolSize(null);
     setActiveCategory(category);
   };
@@ -279,19 +283,30 @@ export default function ActivitiesEventsPage() {
     
     try {
       const queryParams = new URLSearchParams({
-        page: currentPage.toString(),
+        page: activeTab === "recommended" ? "1" : currentPage.toString(),
         limit: EVENTS_PER_PAGE.toString(),
         tab: activeTab,
         category: activeCategory
       });
-      if (activeTab === "recommended" && recommendationPoolSize !== null) {
-        queryParams.set("pool_size", recommendationPoolSize.toString());
+      if (activeTab === "recommended") {
+        queryParams.set("full_pool", "true");
+        if (recommendationPoolSize !== null) {
+          queryParams.set("pool_size", recommendationPoolSize.toString());
+        }
       }
       
       const res = await apiFetch(`/api/events?${queryParams.toString()}`);
       if (res.ok) {
         const result = await res.json();
-        setEvents(result.events || []);
+        const loadedEvents = result.events || [];
+        if (activeTab === "recommended") {
+          setRecommendedPool(loadedEvents);
+          setRecommendedPoolCategory(activeCategory);
+          setRecommendedHasMoreMatches(result.hasMoreMatches === true);
+          setEvents(loadedEvents.slice((currentPage - 1) * EVENTS_PER_PAGE, currentPage * EVENTS_PER_PAGE));
+        } else {
+          setEvents(loadedEvents);
+        }
         setTotalCount(result.totalCount || 0);
         if (activeCategory === "All") {
           setAllEventsCount(result.totalCount || 0);
@@ -310,19 +325,23 @@ export default function ActivitiesEventsPage() {
     setNoMoreMatches(false);
     try {
       const queryParams = new URLSearchParams({
-        page: currentPage.toString(),
+        page: "1",
         limit: EVENTS_PER_PAGE.toString(),
         tab: "recommended",
         category: activeCategory,
-        pool_size: totalCount.toString(),
-        generate_more: "true"
+        pool_size: (recommendationPoolSize ?? Math.max(totalCount, 12)).toString(),
+        generate_more: "true",
+        full_pool: "true"
       });
       const res = await apiFetch(`/api/events?${queryParams.toString()}`);
       if (res.ok) {
         const result = await res.json();
         const newEvents = result.events || [];
 
-        setEvents(newEvents);
+        setRecommendedPool(newEvents);
+        setRecommendedPoolCategory(activeCategory);
+        setRecommendedHasMoreMatches(result.hasMoreMatches === true);
+        setEvents(newEvents.slice((currentPage - 1) * EVENTS_PER_PAGE, currentPage * EVENTS_PER_PAGE));
         setTotalCount(result.totalCount || 0);
         setRecommendationPoolSize(result.totalCount || totalCount);
 
@@ -393,25 +412,40 @@ export default function ActivitiesEventsPage() {
     window.history.replaceState(null, '', `?${params.toString()}`);
   }, [activeTab, activeCategory, currentPage, recommendationPoolSize, isUrlLoaded]);
 
-  // Reset to page 1 ONLY when tab or category changes, not on mount
-  React.useEffect(() => {
-    if (isFirstRender.current) {
-      if (isUrlLoaded) isFirstRender.current = false;
-      return;
-    }
-    setCurrentPage(1);
-  }, [activeTab, activeCategory, isUrlLoaded]);
-
-  // Fetch events when page, tab, or category changes
+  // Fetch recommendations once per category during this visit; page changes use the loaded pool.
   React.useEffect(() => {
     if (!isUrlLoaded) return;
+    if (
+      activeTab === "recommended" &&
+      recommendedPool !== null &&
+      recommendedPoolCategory === activeCategory
+    ) return;
     loadEvents();
   }, [currentPage, activeTab, activeCategory, isUrlLoaded]);
+
+  React.useEffect(() => {
+    if (
+      activeTab !== "recommended" ||
+      recommendedPool === null ||
+      recommendedPoolCategory !== activeCategory
+    ) return;
+
+    const pageCount = Math.max(1, Math.ceil(recommendedPool.length / EVENTS_PER_PAGE));
+    if (currentPage > pageCount) {
+      setCurrentPage(pageCount);
+      return;
+    }
+
+    const start = (currentPage - 1) * EVENTS_PER_PAGE;
+    setEvents(recommendedPool.slice(start, start + EVENTS_PER_PAGE));
+    setTotalCount(recommendedPool.length);
+    setIsLoading(false);
+  }, [activeTab, activeCategory, currentPage, recommendedPool, recommendedPoolCategory]);
 
   // Keep allEventsCount synchronized when tab changes
   React.useEffect(() => {
     if (!isUrlLoaded) return;
-    if (activeCategory !== "All") {
+    if (activeCategory !== "All" && activeTab !== "recommended") {
       loadAllCategoryCount(activeTab);
     }
   }, [activeTab, isUrlLoaded]);
@@ -431,8 +465,11 @@ export default function ActivitiesEventsPage() {
     try {
       if (isJoined) {
         await apiFetch(`/api/events/${id}/leave`, { method: "POST" });
+        setRecommendedPool(null);
+        setRecommendedPoolCategory(null);
       } else {
         await apiFetch(`/api/events/${id}/join`, { method: "POST" });
+        setRecommendedPool(prev => prev?.filter(event => event.id !== id) ?? null);
       }
     } catch (error) {
       // Revert on failure
@@ -509,7 +546,9 @@ export default function ActivitiesEventsPage() {
       setFormStartDate("");
       setFormEndDate("");
       await loadEvents();
-      await loadAllCategoryCount();
+      if (activeTab !== "recommended") {
+        await loadAllCategoryCount();
+      }
     } catch (e) {
       setFormError("An unexpected error occurred");
     }
@@ -1003,7 +1042,9 @@ export default function ActivitiesEventsPage() {
         </div>
 
         {/* On-Demand Generate More AI Matches Action (Recommended Tab Only - Last Page Only) */}
-        {activeTab === "recommended" && !isLoading && events.length > 0 && currentPage === totalPages && (
+        {activeTab === "recommended" && !isLoading && currentPage === totalPages && (
+          events.length > 0 || (recommendedHasMoreMatches && !noMoreMatches)
+        ) && (
           <div className="flex flex-col items-center justify-center mt-10 mb-2 animate-in fade-in duration-300">
             <button
               onClick={handleGenerateMoreAI}
@@ -1108,7 +1149,7 @@ export default function ActivitiesEventsPage() {
         )}
 
         {/* Wow Empty State */}
-        {!isLoading && events.length === 0 && (
+        {!isLoading && events.length === 0 && !(activeTab === "recommended" && recommendedHasMoreMatches && !noMoreMatches) && (
           <div className="flex flex-col items-center justify-center py-24 px-4 text-center animate-in fade-in duration-500">
             <div className="bg-gray-100 w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner">
               <SearchX className="w-10 h-10 text-gray-400" />
