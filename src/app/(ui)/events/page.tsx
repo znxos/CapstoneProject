@@ -1223,7 +1223,7 @@ export default function ActivitiesEventsPage() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2" htmlFor="capacity">Capacity</label>
-                  <input required id="capacity" name="capacity" type="number" min="2" placeholder="e.g., 10" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
+                  <input required id="capacity" name="capacity" type="number" min="3" max="10" placeholder="e.g., 10" className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#444444] transition-all shadow-sm" />
                 </div>
               </div>
               
